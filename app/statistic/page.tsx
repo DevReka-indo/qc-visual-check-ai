@@ -25,7 +25,7 @@ const COLORS = ["#ef4444", "#f97316", "#eab308"]
 
 export default function StatisticPage() {
     return (
-        <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-10">
+        <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Statistic Overview</h1>
                 <p className="text-muted-foreground mt-2">
