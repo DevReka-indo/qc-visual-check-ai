@@ -141,7 +141,7 @@ export default function DetectionResultPage() {
             </div>
 
             {/* Gallery/List section matching the requested screenshot */}
-            <div className="mt-8">
+            <div>
                 {/* Date Filter & Pagination Header */}
                 <div className="flex items-center justify-between mb-6 bg-card p-3 rounded-xl border shadow-sm">
                     <div className="flex items-center gap-4 text-sm font-medium">
