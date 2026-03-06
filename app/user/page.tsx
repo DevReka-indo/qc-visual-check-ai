@@ -1,7 +1,7 @@
 export default function UserPage() {
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
-            <h1 className="text-3xl font-bold tracking-tight">User</h1>
+            <h1 className="text-3xl font-bold tracking-tight font-serif">User</h1>
             <p className="text-muted-foreground">
                 Manage profile, preferences, and permissions.
             </p>

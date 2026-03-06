@@ -45,7 +45,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Detection Engine</h1>
+        <h1 className="text-3xl font-bold tracking-tight font-serif">Detection Engine</h1>
         <p className="text-muted-foreground mt-2">
           Upload an image of a train bogie base structure to analyze it for physical anomalies.
         </p>

@@ -18,7 +18,7 @@ export default function DetectionResultPage() {
         <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Detection Result Detail</h1>
+                    <h1 className="text-3xl font-bold tracking-tight font-serif">Detection Result Detail</h1>
                     <p className="text-muted-foreground mt-2">
                         In-depth analysis of recently detected structural anomalies.
                     </p>
