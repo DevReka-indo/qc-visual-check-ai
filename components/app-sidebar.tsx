@@ -49,11 +49,11 @@ const data = {
     ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
 
     return (
-        <Sidebar {...props}>
+        <Sidebar className={cn("font-gelasio", className)} {...props}>
             <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4 py-2">
                 <Link href="/" className="flex items-center gap-2 max-w-full">
                     <Image src="/logo.webp" alt="Logo" width={140} height={50} className="object-contain" priority />

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Noto_Serif } from "next/font/google";
+import { DM_Sans, Noto_Serif, Gelasio } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -16,6 +16,11 @@ const notoSerif = Noto_Serif({
   subsets: ["latin"],
 });
 
+const gelasio = Gelasio({
+  variable: "--font-gelasio",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "Dashboard",
   description: "Dashboard Application",
@@ -29,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${dmSans.variable} ${notoSerif.variable} font-sans antialiased`}
+        className={`${dmSans.variable} ${notoSerif.variable} ${gelasio.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"
