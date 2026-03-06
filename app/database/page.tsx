@@ -125,7 +125,7 @@ export default function DatabasePage() {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem asChild>
-                                                            <Link href="/detection-result"><Eye className="mr-2 h-4 w-4" /> View Details</Link>
+                                                            <Link href="/detection-result">View Details</Link>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem>Download Image</DropdownMenuItem>
