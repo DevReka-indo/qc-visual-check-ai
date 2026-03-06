@@ -6,6 +6,10 @@ import { AlertTriangle, CheckCircle, Clock, Info, Calendar as CalendarIcon, Chev
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 const mockDetections = [
     {
@@ -53,6 +57,9 @@ const mockDetections = [
 
 export default function DetectionResultPage() {
     const [selectedDetectionId, setSelectedDetectionId] = useState(mockDetections[0].id)
+    const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date("2026-07-25"))
+    const [dateTo, setDateTo] = useState<Date | undefined>(new Date("2026-07-29"))
+
     const selectedDetection = mockDetections.find(d => d.id === selectedDetectionId) || mockDetections[0]
 
     return (
@@ -138,15 +145,56 @@ export default function DetectionResultPage() {
                 {/* Date Filter & Pagination Header */}
                 <div className="flex items-center justify-between mb-6 bg-card p-3 rounded-xl border shadow-sm">
                     <div className="flex items-center gap-4 text-sm font-medium">
-                        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-md border">
-                            <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                            <span>25 July 2026</span>
-                        </div>
+
+                        {/* Start Date Picker */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "justify-start text-left font-medium bg-muted/50 border",
+                                        !dateFrom && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    {dateFrom ? format(dateFrom, "dd MMMM yyyy") : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={dateFrom}
+                                    onSelect={setDateFrom}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+
                         <span className="text-muted-foreground font-semibold">To</span>
-                        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-md border">
-                            <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                            <span>29 July 2026</span>
-                        </div>
+
+                        {/* End Date Picker */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "justify-start text-left font-medium bg-muted/50 border",
+                                        !dateTo && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    {dateTo ? format(dateTo, "dd MMMM yyyy") : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={dateTo}
+                                    onSelect={setDateTo}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     <div className="flex items-center gap-4 text-sm font-medium">
