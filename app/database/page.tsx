@@ -50,7 +50,7 @@ export default function DatabasePage() {
         <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight font-serif">Detection History</h1>
+                    <h1 className="text-3xl font-bold tracking-tight font-serif">Database</h1>
                     <p className="text-muted-foreground mt-2">
                         Complete database of all past bogie structural analyses.
                     </p>

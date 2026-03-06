@@ -5,6 +5,7 @@ import { Home, ScanSearch, BarChart3, Database, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 import {
     Sidebar,
@@ -60,9 +61,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel>Menu</SidebarGroupLabel>
                     <SidebarGroupContent>
-                        <SidebarMenu>
+                        <SidebarMenu className="gap-2">
                             {data.navMain.map((item) => {
                                 const isActive = pathname === item.url || (item.url !== "/" && pathname?.startsWith(item.url))
                                 return (
@@ -71,10 +71,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                             asChild
                                             isActive={isActive}
                                             tooltip={item.title}
-                                            className={isActive ? "bg-primary/10 text-primary font-bold dark:bg-primary/20 hover:bg-primary/15" : ""}
+                                            className={cn(
+                                                "h-12 text-base",
+                                                isActive ? "bg-primary/40 text-primary font-bold dark:bg-primary/40 hover:bg-primary/40" : ""
+                                            )}
                                         >
-                                            <Link href={item.url}>
-                                                <item.icon />
+                                            <Link href={item.url} className="flex gap-3 w-full">
+                                                <item.icon className="size-10" />
                                                 <span>{item.title}</span>
                                             </Link>
                                         </SidebarMenuButton>
