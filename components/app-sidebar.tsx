@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Home, ScanSearch, BarChart3, Database, User } from "lucide-react"
+import { Home, ScanSearch, BarChart3, Database, User, LogOut } from "lucide-react" // Tambah icon LogOut
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation" // Tambah useRouter
 import { cn } from "@/lib/utils"
 
 import {
@@ -12,12 +12,25 @@ import {
     SidebarContent,
     SidebarGroup,
     SidebarGroupContent,
-    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarFooter, // Tambahkan SidebarFooter
 } from "@/components/ui/sidebar"
+
+// IMPORT COMPONENT ALERT DIALOG
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const data = {
     navMain: [
@@ -51,14 +64,26 @@ const data = {
 
 export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
+    const router = useRouter() // Inisialisasi router
+
+    // Fungsi Logout
+    const handleLogout = () => {
+        // Hapus data login
+        localStorage.removeItem("isLoggedIn")
+        // Pindah ke halaman login
+        router.push("/auth")
+    }
 
     return (
         <Sidebar className={cn("font-gelasio", className)} {...props}>
+            {/* HEADER LOGO */}
             <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4 py-2">
                 <Link href="/" className="flex items-center gap-2 max-w-full">
                     <Image src="/logo.webp" alt="Logo" width={140} height={50} className="object-contain" priority />
                 </Link>
             </SidebarHeader>
+
+            {/* CONTENT MENU */}
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupContent>
@@ -88,6 +113,44 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
+
+            {/* FOOTER LOGOUT DENGAN KONFIRMASI POP-UP */}
+            <SidebarFooter className="border-t border-sidebar-border p-4">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <AlertDialog>
+                            {/* Trigger: Menggunakan tombol asli kamu */}
+                            <AlertDialogTrigger asChild>
+                                <SidebarMenuButton
+                                    className="h-12 text-base text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 gap-3 cursor-pointer"
+                                >
+                                    <LogOut className="size-10" />
+                                    <span className="font-medium">Logout</span>
+                                </SidebarMenuButton>
+                            </AlertDialogTrigger>
+
+                            {/* Konten Pop-up */}
+                            <AlertDialogContent className="font-gelasio">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Konfirmasi Keluar</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Apakah Anda yakin ingin keluar dari aplikasi? Anda harus login kembali untuk mengakses data.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                        onClick={handleLogout}
+                                        className="bg-red-500 hover:bg-red-600 text-white"
+                                    >
+                                        Keluar
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarFooter>
         </Sidebar>
     )
 }
