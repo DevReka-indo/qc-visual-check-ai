@@ -7,7 +7,6 @@ import { AlertCircle, Lock, User, Info } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   
-  
   // State form login
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
