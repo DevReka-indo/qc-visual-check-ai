@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Lock, User, Info } from "lucide-react"; // Tambah icon Info
+import { AlertCircle, Lock, User, Info } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,6 +40,7 @@ export default function LoginPage() {
       className="fixed inset-0 w-full h-full flex items-center justify-center bg-no-repeat bg-cover bg-center"
       style={{ backgroundImage: "url('/bg-team.jpg')" }}
     >
+      {/* Overlay Gelap */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
 
       {/* --- CARD LOGIN UTAMA --- */}
@@ -58,6 +59,7 @@ export default function LoginPage() {
         )}
         
         <form onSubmit={handleLogin} className="space-y-5">
+          {/* USERNAME INPUT */}
           <div className="space-y-1.5">
             <label className="text-gray-700 text-sm font-semibold ml-1">Username</label>
             <div className="relative">
@@ -67,12 +69,14 @@ export default function LoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+                /* FIX: Menambahkan text-gray-900 agar tulisan tidak putih di link web */
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-gray-900 placeholder:text-gray-400"
                 placeholder="admin"
               />
             </div>
           </div>
           
+          {/* PASSWORD INPUT */}
           <div className="space-y-1.5">
             <label className="text-gray-700 text-sm font-semibold ml-1">Password</label>
             <div className="relative">
@@ -82,7 +86,8 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+                /* FIX: Menambahkan text-gray-900 agar tulisan tidak putih di link web */
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-gray-900 placeholder:text-gray-400"
                 placeholder="••••••••"
               />
             </div>
@@ -102,7 +107,6 @@ export default function LoginPage() {
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
           <p className="text-sm text-gray-600">
             Belum punya account?{' '}
-            {/* Tombol Register mengubah state menjadi TRUE */}
             <button 
               type="button"
               onClick={() => setShowRegisterModal(true)}
@@ -118,24 +122,20 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* --- POP-UP MODAL KUSTOM (Muncul jika showRegisterModal === true) --- */}
+      {/* --- POP-UP MODAL REGISTER --- */}
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          {/* Box Modal dengan animasi */}
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
-              {/* Icon */}
               <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mb-4 border-4 border-blue-100">
                 <Info className="size-6 text-[#0d6efd]" />
               </div>
               
-              {/* Teks */}
               <h3 className="text-xl font-bold text-gray-900 mb-2">Coming Soon!</h3>
               <p className="text-gray-500 mb-6 text-sm leading-relaxed">
                 Fitur pendaftaran (Register) sedang dalam tahap pengembangan. <br/> <span className="font-semibold italic">To be continued...</span>
               </p>
               
-              {/* Tombol Oke */}
               <button
                 onClick={() => setShowRegisterModal(false)}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-xl transition-all"
