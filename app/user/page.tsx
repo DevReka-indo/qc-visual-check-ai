@@ -17,15 +17,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { getDashboardStats } from "@/app/actions/database"
+import { getUserProfile, getDashboardStats } from "@/app/actions/database"
 
 export default function UserPage() {
+  const [profile, setProfile] = useState<any>(null)
   const [stats, setStats] = useState<{ total_inspections: number, accuracy_percentage: number, active_hours: number, pending_tasks: number } | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getDashboardStats().then(data => {
-      if (data) setStats(data)
-    })
+    async function loadUserData() {
+      setLoading(true)
+      const { data: { user } } = await (await import('@/utils/supabase/client')).createClient().auth.getUser()
+      if (user) {
+        const [profileData, statsData] = await Promise.all([
+          getUserProfile(user.id),
+          getDashboardStats()
+        ])
+        setProfile(profileData)
+        setStats(statsData)
+      }
+      setLoading(false)
+    }
+    loadUserData()
   }, [])
 
   return (
@@ -40,17 +53,17 @@ export default function UserPage() {
 
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">Mr.Reka</h1>
-            <Badge className="bg-red-500/10 text-black-600 border-red-500/20 hover:bg-red-500/10">
-              Offline
+            <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name || 'Mr.Reka'}</h1>
+            <Badge className={`${profile?.status === 'Online' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'} border-transparent hover:bg-transparent`}>
+              {profile?.status || 'Offline'}
             </Badge>
           </div>
           <p className="text-muted-foreground flex items-center gap-2">
-            <Mail className="h-4 w-4" /> user@rekainka.co.id
+            <Mail className="h-4 w-4" /> {profile?.email || 'user@rekainka.co.id'}
           </p>
           <div className="flex gap-2 mt-2">
-            <Badge variant="outline" className="font-medium">REKA-QC-091</Badge>
-            <Badge variant="secondary" className="font-medium italic">Final Electric Division</Badge>
+            <Badge variant="outline" className="font-medium">{profile?.employee_id || 'REKA-QC-091'}</Badge>
+            <Badge variant="secondary" className="font-medium italic">{profile?.divisions?.name || 'Final Electric Division'}</Badge>
           </div>
         </div>
 
@@ -125,19 +138,19 @@ export default function UserPage() {
                   <label className="text-sm font-medium">Nama Lengkap</label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input className="pl-10" defaultValue="User Reka Inka" />
+                    <Input className="pl-10" defaultValue={profile?.full_name || ""} />
                   </div>
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Email</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input className="pl-10" defaultValue="user@rekainka.co.id" />
+                    <Input className="pl-10" defaultValue={profile?.email || ""} disabled />
                   </div>
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Divisi Kerja</label>
-                  <Input defaultValue="Quality Control - Final Electric" disabled />
+                  <Input defaultValue={profile?.divisions?.name || ""} disabled />
                 </div>
                 <Button className="w-full md:w-auto mt-2">Simpan Perubahan</Button>
               </TabsContent>

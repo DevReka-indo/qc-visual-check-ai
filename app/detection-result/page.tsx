@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-import { getInspections, getDivisions, type InspectionWithDetails } from "@/app/actions/database"
+import { getInspections, getDivisions, updateInspectionStatus, type InspectionWithDetails } from "@/app/actions/database"
 
 export default function DetectionResultPage() {
     const [activeTab, setActiveTab] = useState("Detected")
@@ -27,20 +27,35 @@ export default function DetectionResultPage() {
     const [divisions, setDivisions] = useState<{ id: string, name: string, desc: string, color: string, images?: string[] }[]>([])
     const [loading, setLoading] = useState(true)
 
+    const fetchInspections = async () => {
+        setLoading(true)
+        const inspData = await getInspections(100)
+        setInspections(inspData || [])
+        setLoading(false)
+    }
+
+    const handleValidation = async (id: string, status: 'Resolved' | 'Reworked' | 'Scrapped') => {
+        const res = await updateInspectionStatus(id, status)
+        if (res.error) {
+            alert(`Gagal update: ${res.error}`)
+        } else {
+            fetchInspections() // Refresh data
+        }
+    }
+
     useEffect(() => {
         async function loadData() {
             setLoading(true)
-            const [inspData, divData] = await Promise.all([
-                getInspections(100),
-                getDivisions()
-            ])
+            const inspData = await getInspections(100)
+            const divData = await getDivisions()
+
             setInspections(inspData || [])
-            setDivisions(divData.map(d => ({
+            setDivisions(divData?.map(d => ({
                 id: d.id,
                 name: d.name,
-                desc: d.description || "",
-                color: d.color_code || "#94a3b8",
-                images: [] // images can be fetched or left empty
+                desc: d.description || '',
+                color: d.color_code || '#000',
+                images: []
             })) || [])
             setLoading(false)
         }

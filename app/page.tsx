@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { getInspections } from "@/app/actions/database"
+import { getInspections, getUserProfile } from "@/app/actions/database"
 
 export default function HomePage() {
   const router = useRouter()
@@ -21,10 +21,10 @@ export default function HomePage() {
   const [confidence, setConfidence] = useState<number>(0)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
-  // New States untuk UI Modern
   const [isDragging, setIsDragging] = useState(false)
   const [defectBox, setDefectBox] = useState<{ top: number, left: number, width: number, height: number } | null>(null)
   const [recentDetections, setRecentDetections] = useState<{ id: string, status: string, time: string }[]>([])
+  const [userDivision, setUserDivision] = useState<string | null>(null)
 
   // --- LOGIKA PROTEKSI LOGIN & FETCH DATA ---
   useEffect(() => {
@@ -32,8 +32,16 @@ export default function HomePage() {
     // We just fetch the data here.
     setIsAuthorized(true)
 
-    // Load recent detections from db
-    getInspections(3).then(data => {
+    // Load divisions and user profile to get division_id
+    const loadInitialData = async () => {
+      const { data: { user } } = await (await import('@/utils/supabase/client')).createClient().auth.getUser()
+      if (user) {
+        const profile = await getUserProfile(user.id)
+        if (profile?.division_id) setUserDivision(profile.division_id)
+      }
+
+      // Load recent detections from db
+      const data = await getInspections(3)
       if (data) {
         setRecentDetections(data.map(i => ({
           id: i.part_id,
@@ -41,12 +49,14 @@ export default function HomePage() {
           time: new Date(i.inspection_date || new Date()).toLocaleDateString()
         })))
       }
-    })
+    }
+
+    loadInitialData()
   }, [])
 
   // --- EFFECT UNTUK GENERATE ANGKA RANDOM ---
   useEffect(() => {
-    if (isAuthorized) {
+    if (isAuthorized && result) {
       const randomVal = Number((Math.random() * 10 + 89).toFixed(1))
       setConfidence(randomVal)
     }
@@ -83,35 +93,62 @@ export default function HomePage() {
     if (file) processFile(file)
   }
 
-  const handleDetection = () => {
+  const handleDetection = async () => {
     if (!selectedImage) return
     setIsDetecting(true)
     setResult(null)
     setDefectBox(null)
 
     // Simulasi Deep Learning Process
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsDetecting(false)
       const isOkay = Math.random() > 0.5
+      const partId = `BG-${Math.floor(Math.random() * 9000) + 1000}`
+      const simulatedConfidence = Number((Math.random() * 10 + 89).toFixed(1))
+
+      let finalResult: { status: "okay" | "not_okay"; reason?: string };
+      let anomalies: any[] = [];
 
       if (isOkay) {
-        setResult({ status: "okay" })
-        setRecentDetections(prev => [{ id: `BG-${Math.floor(Math.random() * 9000) + 1000}`, status: "okay", time: "Just now" }, ...prev].slice(0, 3))
+        finalResult = { status: "okay" }
       } else {
         const defects = ["Terdeteksi Baret", "Terdeteksi Lengkung", "Terdeteksi Cat Meleber"]
         const randomDefect = defects[Math.floor(Math.random() * defects.length)]
-        setResult({ status: "not_okay", reason: randomDefect })
+        finalResult = { status: "not_okay", reason: randomDefect }
 
-        // Generate random bounding box (dalam persentase agar responsif)
-        setDefectBox({
+        const box = {
           top: Math.floor(Math.random() * 40) + 20,
           left: Math.floor(Math.random() * 40) + 20,
           width: Math.floor(Math.random() * 20) + 15,
           height: Math.floor(Math.random() * 20) + 15,
-        })
+        }
+        setDefectBox(box)
 
-        setRecentDetections(prev => [{ id: `BG-${Math.floor(Math.random() * 9000) + 1000}`, status: "not_okay", time: "Just now" }, ...prev].slice(0, 3))
+        anomalies.push({
+          defect_type: randomDefect,
+          location: "Visual Surface",
+          description: `Simulated anomaly detected: ${randomDefect}`,
+          confidence_score: simulatedConfidence,
+          bounding_box: box
+        })
       }
+
+      setResult(finalResult)
+
+      // Save to Supabase
+      const { saveInspection } = await import('@/app/actions/database')
+      await saveInspection({
+        part_id: partId,
+        division_id: userDivision,
+        image_url: selectedImage, // In real world, we would upload this to storage first
+        ai_result_status: finalResult.status,
+        main_defect: finalResult.reason || 'None',
+        ai_confidence_score: simulatedConfidence,
+        anomalies: anomalies
+      })
+
+      // Update recent list
+      setRecentDetections(prev => [{ id: partId, status: finalResult.status, time: "Just now" }, ...prev].slice(0, 3))
     }, 2500)
   }
 
