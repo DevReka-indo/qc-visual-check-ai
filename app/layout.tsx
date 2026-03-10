@@ -34,7 +34,7 @@ export default function RootLayout({
   const pathname = usePathname(); // Mengambil alamat URL saat ini
 
   // Cek apakah user sedang berada di halaman login (/auth)
-  const isAuthPage = pathname === "/auth";
+  const isAuthPage = pathname === "/auth" || pathname === "/register";
 
   return (
     <html lang="en" suppressHydrationWarning>

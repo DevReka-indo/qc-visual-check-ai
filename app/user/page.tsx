@@ -1,14 +1,15 @@
 "use client"
 
-import React from "react"
-import { 
-  User as UserIcon, 
-  Mail, 
-  ShieldCheck, 
-  Clock, 
-  FileCheck, 
-  Target, 
+import React, { useEffect, useState } from "react"
+import {
+  User as UserIcon,
+  Mail,
+  ShieldCheck,
+  Clock,
+  FileCheck,
+  Target,
   KeyRound,
+  Loader2
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,18 +17,27 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getDashboardStats } from "@/app/actions/database"
 
 export default function UserPage() {
+  const [stats, setStats] = useState<{ total_inspections: number, accuracy_percentage: number, active_hours: number, pending_tasks: number } | null>(null)
+
+  useEffect(() => {
+    getDashboardStats().then(data => {
+      if (data) setStats(data)
+    })
+  }, [])
+
   return (
     <div className="p-6 space-y-6 font-gelasio animate-in fade-in duration-500">
-      
+
       {/* BAGIAN 2: UPDATE HEADER PROFIL (YANG ADA FOTONYA) */}
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 bg-card p-6 rounded-xl border shadow-sm">
         <Avatar className="h-24 w-24 border-4 border-primary/10 shadow-lg">
           <AvatarImage src="https://github.com/shadcn.png" alt="User Profile" />
           <AvatarFallback className="text-xl bg-primary text-primary-foreground">RI</AvatarFallback>
         </Avatar>
-        
+
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Mr.Reka</h1>
@@ -60,8 +70,10 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-green-500 font-medium">+12% dari bulan lalu</p>
+            {stats ? (
+              <div className="text-2xl font-bold">{stats.total_inspections}</div>
+            ) : <Loader2 className="w-5 h-5 animate-spin" />}
+            <p className="text-xs text-green-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-full truncate block">(Bulan ini)</p>
           </CardContent>
         </Card>
         <Card className="hover:shadow-md transition-shadow">
@@ -72,8 +84,10 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12%</div>
-            <p className="text-xs text-muted-foreground">Standar industri: 12%</p>
+            {stats ? (
+              <div className="text-2xl font-bold">{stats.accuracy_percentage}%</div>
+            ) : <Loader2 className="w-5 h-5 animate-spin" />}
+            <p className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-full truncate block">Standar industri: {stats ? stats.accuracy_percentage : '0'}%</p>
           </CardContent>
         </Card>
         <Card className="hover:shadow-md transition-shadow">
@@ -84,8 +98,10 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12 Jam</div>
-            <p className="text-xs text-muted-foreground">Total Bulan Maret 2026</p>
+            {stats ? (
+              <div className="text-2xl font-bold">{stats.active_hours} Jam</div>
+            ) : <Loader2 className="w-5 h-5 animate-spin" />}
+            <p className="text-xs text-muted-foreground">Total Bulan Ini</p>
           </CardContent>
         </Card>
       </div>
@@ -103,7 +119,7 @@ export default function UserPage() {
                 <TabsTrigger value="profile">Profil Umum</TabsTrigger>
                 <TabsTrigger value="security">Keamanan</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="profile" className="space-y-4">
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Nama Lengkap</label>

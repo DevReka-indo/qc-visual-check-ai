@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getInspections } from "@/app/actions/database"
 
 export default function HomePage() {
   const router = useRouter()
@@ -19,24 +20,29 @@ export default function HomePage() {
   const [result, setResult] = useState<{ status: "okay" | "not_okay"; reason?: string } | null>(null)
   const [confidence, setConfidence] = useState<number>(0)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  
+
   // New States untuk UI Modern
   const [isDragging, setIsDragging] = useState(false)
   const [defectBox, setDefectBox] = useState<{ top: number, left: number, width: number, height: number } | null>(null)
-  const [recentDetections, setRecentDetections] = useState([
-    { id: "BG-1092", status: "okay", time: "2 mins ago" },
-    { id: "BG-1091", status: "not_okay", time: "15 mins ago" },
-  ])
+  const [recentDetections, setRecentDetections] = useState<{ id: string, status: string, time: string }[]>([])
 
-  // --- LOGIKA PROTEKSI LOGIN ---
+  // --- LOGIKA PROTEKSI LOGIN & FETCH DATA ---
   useEffect(() => {
-    const loginStatus = localStorage.getItem("isLoggedIn")
-    if (loginStatus !== "true") {
-      router.push('/auth')
-    } else {
-      setIsAuthorized(true)
-    }
-  }, [router])
+    // Note: Middleware handles redirection if there's no session.
+    // We just fetch the data here.
+    setIsAuthorized(true)
+
+    // Load recent detections from db
+    getInspections(3).then(data => {
+      if (data) {
+        setRecentDetections(data.map(i => ({
+          id: i.part_id,
+          status: i.ai_result_status === 'okay' ? "okay" : "not_okay",
+          time: new Date(i.inspection_date || new Date()).toLocaleDateString()
+        })))
+      }
+    })
+  }, [])
 
   // --- EFFECT UNTUK GENERATE ANGKA RANDOM ---
   useEffect(() => {
@@ -87,7 +93,7 @@ export default function HomePage() {
     setTimeout(() => {
       setIsDetecting(false)
       const isOkay = Math.random() > 0.5
-      
+
       if (isOkay) {
         setResult({ status: "okay" })
         setRecentDetections(prev => [{ id: `BG-${Math.floor(Math.random() * 9000) + 1000}`, status: "okay", time: "Just now" }, ...prev].slice(0, 3))
@@ -95,7 +101,7 @@ export default function HomePage() {
         const defects = ["Terdeteksi Baret", "Terdeteksi Lengkung", "Terdeteksi Cat Meleber"]
         const randomDefect = defects[Math.floor(Math.random() * defects.length)]
         setResult({ status: "not_okay", reason: randomDefect })
-        
+
         // Generate random bounding box (dalam persentase agar responsif)
         setDefectBox({
           top: Math.floor(Math.random() * 40) + 20,
@@ -103,7 +109,7 @@ export default function HomePage() {
           width: Math.floor(Math.random() * 20) + 15,
           height: Math.floor(Math.random() * 20) + 15,
         })
-        
+
         setRecentDetections(prev => [{ id: `BG-${Math.floor(Math.random() * 9000) + 1000}`, status: "not_okay", time: "Just now" }, ...prev].slice(0, 3))
       }
     }, 2500)
@@ -112,17 +118,18 @@ export default function HomePage() {
   if (!isAuthorized) return null
 
   // Warna dinamis untuk Card Hasil
-  const resultCardClass = result 
-    ? result.status === "okay" 
-      ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
+  const resultCardClass = result
+    ? result.status === "okay"
+      ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
       : "border-destructive/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]"
     : "border-sidebar-border"
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
-      
+
       {/* CSS Animasi Scanner (Disisipkan agar mudah tanpa config tailwind tambahan) */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes scan {
           0% { top: 0%; opacity: 0; }
           10% { opacity: 1; }
@@ -151,21 +158,20 @@ export default function HomePage() {
             </CardTitle>
             <CardDescription>Drag & drop gambar atau klik untuk memilih file.</CardDescription>
           </CardHeader>
-          
+
           <CardContent className="flex-1 p-6">
-            <div 
+            <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative w-full min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${
-                isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 
+              className={`relative w-full min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${isDragging ? 'border-primary bg-primary/5 scale-[1.02]' :
                 selectedImage ? 'border-transparent bg-slate-900/5 dark:bg-slate-900/50' : 'border-border bg-muted/20 hover:bg-muted/40 hover:border-primary/50 cursor-pointer'
-              }`}
+                }`}
             >
               {selectedImage ? (
                 <div className="relative w-full h-full flex items-center justify-center p-2 group">
                   <img src={selectedImage} alt="Uploaded bogie" className="max-h-[300px] object-contain rounded-md shadow-sm z-10" />
-                  
+
                   {/* Efek Scanning Laser */}
                   {isDetecting && (
                     <div className="absolute inset-0 z-20 overflow-hidden rounded-md pointer-events-none">
@@ -176,7 +182,7 @@ export default function HomePage() {
 
                   {/* Bounding Box Hasil Deteksi */}
                   {defectBox && result?.status === "not_okay" && (
-                    <div 
+                    <div
                       className="absolute z-20 border-2 border-destructive bg-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-all duration-500 ease-out animate-in zoom-in-50"
                       style={{
                         top: `${defectBox.top}%`,
@@ -218,7 +224,7 @@ export default function HomePage() {
               )}
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-between border-t p-4 bg-muted/10 gap-4">
             <Button variant="outline" onClick={() => { setSelectedImage(null); setResult(null); setDefectBox(null); }} disabled={!selectedImage || isDetecting} className="w-24">
               Clear
@@ -236,7 +242,7 @@ export default function HomePage() {
 
         {/* KOLOM KANAN: HASIL & AKTIVITAS */}
         <div className="flex flex-col gap-6">
-          
+
           {/* ANALYSIS RESULT CARD */}
           <Card className={`flex flex-col transition-all duration-500 ${resultCardClass}`}>
             <CardHeader>
@@ -293,8 +299,8 @@ export default function HomePage() {
                       </p>
                     </div>
                     <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className={`h-full transition-all duration-1000 ease-out ${result.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`} 
+                      <div
+                        className={`h-full transition-all duration-1000 ease-out ${result.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`}
                         style={{ width: `${confidence}%` }}
                       ></div>
                     </div>

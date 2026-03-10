@@ -6,6 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation" // Tambah useRouter
 import { cn } from "@/lib/utils"
+import { signOut } from "@/app/actions/auth"
 
 import {
     Sidebar,
@@ -67,11 +68,8 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
     const router = useRouter() // Inisialisasi router
 
     // Fungsi Logout
-    const handleLogout = () => {
-        // Hapus data login
-        localStorage.removeItem("isLoggedIn")
-        // Pindah ke halaman login
-        router.push("/auth")
+    const handleLogout = async () => {
+        await signOut()
     }
 
     return (
@@ -139,7 +137,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Batal</AlertDialogCancel>
-                                    <AlertDialogAction 
+                                    <AlertDialogAction
                                         onClick={handleLogout}
                                         className="bg-red-500 hover:bg-red-600 text-white"
                                     >
