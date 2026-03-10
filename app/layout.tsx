@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useAuth } from "@/hooks/use-auth";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname(); // Mengambil alamat URL saat ini
+  useAuth(); // Initialize global auth & user state sync
 
   // Cek apakah user sedang berada di halaman login (/auth)
   const isAuthPage = pathname === "/auth" || pathname === "/register";
