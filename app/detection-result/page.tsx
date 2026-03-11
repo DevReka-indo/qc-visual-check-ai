@@ -886,7 +886,7 @@ export default function DetectionResultPage() {
         onOpenChange={setIsDetailOpen}
       >
         {selectedDetection && (
-          <DialogContent className="max-w-6xl p-0 gap-0 max-h-[92vh] md:h-[88vh] flex flex-col overflow-hidden">
+          <DialogContent className="sm:max-w-[1400px] p-0 gap-0 max-h-[92vh] md:h-[88vh] flex flex-col overflow-hidden">
             {/* ── Header ─────────────────────────────────── */}
             <DialogHeader className="shrink-0 px-5 pt-5 pb-4 border-b pr-12">
               <DialogTitle className="text-base md:text-xl font-serif leading-snug">
