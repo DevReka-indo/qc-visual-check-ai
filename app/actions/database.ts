@@ -386,9 +386,10 @@ export async function getNextEmployeeId() {
   }
 
   const seqIds = data
-    .map((u) => u.employee_id?.match(/REKA-QC-(\d{3,})/)?.[1])
+    .map((u) => u.employee_id?.match(/REKA-QC-(\d+)/)?.[1])
     .filter(Boolean)
     .map(Number)
+    .filter((n) => n < 1000) // Ignore legacy random 4-digit IDs to start sequence from 001
     .sort((a, b) => b - a);
 
   if (seqIds.length === 0) {
