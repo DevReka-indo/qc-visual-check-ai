@@ -21,7 +21,7 @@ export function useAuth() {
         .single();
 
       if (data && !error) {
-        setProfile(data as UserProfileWithDivision);
+        setProfile({ ...data, email } as UserProfileWithDivision);
       } else {
         clearAuth();
       }
