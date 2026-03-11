@@ -6,12 +6,16 @@ import {
   Mail,
   ShieldCheck,
   Clock,
+  Lock,
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  LogOut,
+  CreditCard,
   FileCheck,
   Target,
   KeyRound,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import {
   Card,
@@ -36,6 +40,7 @@ import { format } from "date-fns";
 
 import { useAuthStore } from "@/store/use-auth-store";
 import { useStatsStore } from "@/store/use-stats-store";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import {
   updateUserProfile,
   getDivisions,
@@ -63,11 +68,9 @@ export default function UserPage() {
 
   const loading = authLoading || statsLoading;
 
-  // ── Profile form state ──────────────────────────────────────
   const [fullName, setFullName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [divisionId, setDivisionId] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState("");
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
@@ -85,7 +88,6 @@ export default function UserPage() {
       setFullName(profile.full_name ?? "");
       setEmployeeId(profile.employee_id ?? "");
       setDivisionId(profile.division_id);
-      setAvatarUrl(profile.avatar_url ?? "");
     }
   }, [profile]);
 
@@ -129,9 +131,7 @@ export default function UserPage() {
 
     const result = await updateUserProfile(profile.id, {
       full_name: fullName,
-      employee_id: employeeId,
       division_id: divisionId,
-      avatar_url: avatarUrl,
     });
 
     if (result.error) {
@@ -142,9 +142,7 @@ export default function UserPage() {
       
       updateProfile({
         full_name: fullName,
-        employee_id: employeeId,
         division_id: divisionId,
-        avatar_url: avatarUrl,
         divisions: selectedDivision ? { ...selectedDivision, description: null, color_code: null, created_at: null } : null,
       });
       
@@ -214,19 +212,15 @@ export default function UserPage() {
       {/* ── PROFILE HEADER ──────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6 bg-card p-4 md:p-6 rounded-xl border shadow-sm">
         <div className="relative shrink-0">
-          <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-primary/10 shadow-lg">
-            <AvatarImage
-              src={profile?.avatar_url ?? undefined}
-              alt="User Profile"
-            />
-            <AvatarFallback className="text-xl bg-primary text-primary-foreground">
-              {authLoading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                initials
-              )}
-            </AvatarFallback>
-          </Avatar>
+          <AvatarUpload 
+            userId={profile?.id || ""} 
+            currentAvatarUrl={profile?.avatar_url || null}
+            name={profile?.full_name || null}
+            onUploadSuccess={(url) => {
+              updateProfile({ avatar_url: url });
+              updateUserProfile(profile?.id || "", { avatar_url: url });
+            }}
+          />
         </div>
 
         <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -445,23 +439,22 @@ export default function UserPage() {
 
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">ID Karyawan</label>
-                    <Input
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      placeholder="Masukkan ID Karyawan"
-                      disabled={loading}
-                    />
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        className="pl-10"
+                        value={employeeId}
+                        disabled
+                        title="ID Karyawan diatur secara otomatis oleh sistem."
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground ml-1">
+                      ID Karyawan diatur secara otomatis oleh sistem dan tidak
+                      dapat diubah.
+                    </p>
                   </div>
 
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Avatar URL</label>
-                    <Input
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      disabled={loading}
-                    />
-                  </div>
+
 
                   {/* Feedback */}
                   {profileFeedback && (
