@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import Link from 'next/link';
 import { signIn } from '@/app/actions/auth';
+import { getFriendlyAuthError } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function LoginPage() {
     const result = await signIn(formData);
 
     if (result?.error) {
-      setError(result.error);
+      setError(getFriendlyAuthError(result.error));
       setIsLoading(false);
     }
   }

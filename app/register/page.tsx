@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Lock, User, Mail, CreditCard, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from 'next/link';
 import { signUp } from '@/app/actions/auth';
+import { getFriendlyAuthError } from '@/lib/utils';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -31,7 +32,7 @@ export default function RegisterPage() {
         const result = await signUp(formData);
 
         if (result?.error) {
-            setError(result.error);
+            setError(getFriendlyAuthError(result.error));
             setIsLoading(false);
         }
     }
