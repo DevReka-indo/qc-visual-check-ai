@@ -12,7 +12,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Camera,
 } from "lucide-react";
 import {
   Card,
@@ -26,89 +25,70 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  getUserProfile,
-  getDashboardStats,
-  updateUserProfile,
-} from "@/app/actions/database";
-import { updatePassword } from "@/app/actions/auth";
 import { format } from "date-fns";
 
-type Profile = {
-  id: string;
-  full_name: string | null;
-  employee_id: string | null;
-  role: string | null;
-  email: string | null;
-  avatar_url: string | null;
-  status: string | null;
-  last_login: string | null;
-  divisions?: { name: string } | null;
-};
+import { useAuthStore } from "@/store/use-auth-store";
+import { useStatsStore } from "@/store/use-stats-store";
+import { updateUserProfile } from "@/app/actions/database";
+import { updatePassword } from "@/app/actions/auth";
 
-type Stats = {
-  total_inspections: number;
-  accuracy_percentage: number;
-  active_hours: number;
-  pending_tasks: number;
-};
-
+// ─── Types ───────────────────────────────────────────────────
 type Feedback = { type: "success" | "error"; message: string } | null;
 
+// ─── Component ───────────────────────────────────────────────
 export default function UserPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [authEmail, setAuthEmail] = useState<string | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  // ── Global stores ───────────────────────────────────────────
+  const {
+    profile,
+    authEmail,
+    isLoading: authLoading,
+    updateProfile,
+  } = useAuthStore();
+  const { stats, isLoading: statsLoading, fetchAll } = useStatsStore();
 
-  // Profile form state
+  const loading = authLoading || statsLoading;
+
+  // ── Profile form state ──────────────────────────────────────
   const [fullName, setFullName] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
 
-  // Password form state
+  // ── Password form state ─────────────────────────────────────
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
 
+  // ── Seed form when profile loads ────────────────────────────
   useEffect(() => {
-    async function loadUserData() {
-      setLoading(true);
-      try {
-        const { createClient } = await import("@/utils/supabase/client");
-        const supabase = createClient();
-
-        // Get auth user for verified email
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          setAuthEmail(user.email ?? null);
-
-          const [profileData, statsData] = await Promise.all([
-            getUserProfile(user.id),
-            getDashboardStats(),
-          ]);
-
-          if (profileData) {
-            setProfile(profileData as Profile);
-            setFullName(profileData.full_name ?? "");
-          }
-          if (statsData) setStats(statsData);
-        }
-      } catch (err) {
-        console.error("Error loading user data:", err);
-      } finally {
-        setLoading(false);
-      }
+    if (profile?.full_name) {
+      setFullName(profile.full_name);
     }
-    loadUserData();
-  }, []);
+  }, [profile?.full_name]);
 
-  // ── Save Profile ─────────────────────────────────────
+  // ── Fetch stats on mount (uses TTL cache, won't double-fetch) ──
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  // ── Helpers ─────────────────────────────────────────────────
+  const displayEmail = authEmail ?? profile?.email ?? "—";
+
+  const displayLastLogin = profile?.last_login
+    ? format(new Date(profile.last_login), "dd MMM yyyy, HH:mm")
+    : "—";
+
+  const initials = profile?.full_name
+    ? profile.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "RI";
+
+  // ── Save Profile ─────────────────────────────────────────────
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!profile?.id) return;
@@ -121,19 +101,18 @@ export default function UserPage() {
     if (result.error) {
       setProfileFeedback({ type: "error", message: result.error });
     } else {
-      setProfile((prev) => (prev ? { ...prev, full_name: fullName } : prev));
+      updateProfile({ full_name: fullName });
       setProfileFeedback({
         type: "success",
         message: "Profil berhasil disimpan!",
       });
     }
-    setIsSavingProfile(false);
 
-    // Auto-clear feedback after 4s
+    setIsSavingProfile(false);
     setTimeout(() => setProfileFeedback(null), 4000);
   }
 
-  // ── Update Password ───────────────────────────────────
+  // ── Update Password ──────────────────────────────────────────
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
     setPasswordFeedback(null);
@@ -168,29 +147,15 @@ export default function UserPage() {
       setNewPassword("");
       setConfirmPassword("");
     }
-    setIsUpdatingPassword(false);
 
+    setIsUpdatingPassword(false);
     setTimeout(() => setPasswordFeedback(null), 4000);
   }
 
-  // ── Helpers ───────────────────────────────────────────
-  const displayEmail = authEmail ?? profile?.email ?? "—";
-  const displayLastLogin = profile?.last_login
-    ? format(new Date(profile.last_login), "dd MMM yyyy, HH:mm")
-    : "—";
-
-  const initials = profile?.full_name
-    ? profile.full_name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "RI";
-
+  // ─── Render ───────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-6 font-gelasio animate-in fade-in duration-500">
-      {/* ── PROFILE HEADER ─────────────────────────────── */}
+      {/* ── PROFILE HEADER ──────────────────────────────────── */}
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 bg-card p-6 rounded-xl border shadow-sm">
         <div className="relative">
           <Avatar className="h-24 w-24 border-4 border-primary/10 shadow-lg">
@@ -199,7 +164,7 @@ export default function UserPage() {
               alt="User Profile"
             />
             <AvatarFallback className="text-xl bg-primary text-primary-foreground">
-              {loading ? (
+              {authLoading ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
               ) : (
                 initials
@@ -210,7 +175,7 @@ export default function UserPage() {
 
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            {loading ? (
+            {authLoading ? (
               <div className="h-8 w-48 bg-muted animate-pulse rounded" />
             ) : (
               <>
@@ -232,7 +197,7 @@ export default function UserPage() {
 
           <p className="text-muted-foreground flex items-center gap-2">
             <Mail className="h-4 w-4" />
-            {loading ? (
+            {authLoading ? (
               <span className="h-4 w-40 bg-muted animate-pulse rounded inline-block" />
             ) : (
               displayEmail
@@ -240,7 +205,7 @@ export default function UserPage() {
           </p>
 
           <div className="flex gap-2 mt-2 flex-wrap">
-            {loading ? (
+            {authLoading ? (
               <div className="h-6 w-32 bg-muted animate-pulse rounded-full" />
             ) : (
               <>
@@ -258,14 +223,14 @@ export default function UserPage() {
           </div>
         </div>
 
-        <div className="md:ml-auto flex gap-2">
+        <div className="md:ml-auto">
           <Button size="sm" variant="outline">
             Unduh Report
           </Button>
         </div>
       </div>
 
-      {/* ── STATS OVERVIEW ──────────────────────────────── */}
+      {/* ── STATS OVERVIEW ──────────────────────────────────── */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -277,7 +242,7 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {statsLoading ? (
               <div className="h-8 w-16 bg-muted animate-pulse rounded" />
             ) : (
               <div className="text-2xl font-bold">
@@ -298,7 +263,7 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {statsLoading ? (
               <div className="h-8 w-16 bg-muted animate-pulse rounded" />
             ) : (
               <div className="text-2xl font-bold">
@@ -321,7 +286,7 @@ export default function UserPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {statsLoading ? (
               <div className="h-8 w-16 bg-muted animate-pulse rounded" />
             ) : (
               <div className="text-2xl font-bold">
@@ -334,7 +299,7 @@ export default function UserPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-7">
-        {/* ── LEFT: ACCOUNT SETTINGS ──────────────────── */}
+        {/* ── LEFT: ACCOUNT SETTINGS ────────────────────── */}
         <Card className="md:col-span-4">
           <CardHeader>
             <CardTitle>Pengaturan Akun</CardTitle>
@@ -422,7 +387,7 @@ export default function UserPage() {
                   <Button
                     type="submit"
                     className="w-full md:w-auto mt-2"
-                    disabled={isSavingProfile || loading}
+                    disabled={isSavingProfile || authLoading}
                   >
                     {isSavingProfile ? (
                       <span className="flex items-center gap-2">
@@ -527,8 +492,9 @@ export default function UserPage() {
           </CardContent>
         </Card>
 
-        {/* ── RIGHT: INFO CARDS ────────────────────────── */}
+        {/* ── RIGHT: INFO CARDS ──────────────────────────── */}
         <div className="md:col-span-3 space-y-6">
+          {/* Access Status */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -539,7 +505,7 @@ export default function UserPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-sm text-muted-foreground">Role</span>
-                {loading ? (
+                {authLoading ? (
                   <div className="h-5 w-24 bg-muted animate-pulse rounded" />
                 ) : (
                   <Badge variant="secondary" className="capitalize">
@@ -547,15 +513,17 @@ export default function UserPage() {
                   </Badge>
                 )}
               </div>
+
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-sm text-muted-foreground">
                   Tingkat Izin
                 </span>
                 <span className="text-sm font-medium">Read & Write</span>
               </div>
+
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-sm text-muted-foreground">Status</span>
-                {loading ? (
+                {authLoading ? (
                   <div className="h-5 w-16 bg-muted animate-pulse rounded" />
                 ) : (
                   <Badge
@@ -569,11 +537,12 @@ export default function UserPage() {
                   </Badge>
                 )}
               </div>
+
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">
                   Terakhir Login
                 </span>
-                {loading ? (
+                {authLoading ? (
                   <div className="h-4 w-36 bg-muted animate-pulse rounded" />
                 ) : (
                   <span className="text-sm font-medium">
@@ -584,6 +553,7 @@ export default function UserPage() {
             </CardContent>
           </Card>
 
+          {/* Pending Anomalies */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -591,7 +561,7 @@ export default function UserPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {statsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
                     <div

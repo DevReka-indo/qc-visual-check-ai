@@ -54,13 +54,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  getInspections,
-  deleteInspection,
-  type InspectionWithDetails,
-} from "@/app/actions/database";
+import { useInspectionStore } from "@/store/use-inspection-store";
 import { format } from "date-fns";
 
+// ─── Constants ────────────────────────────────────────────────
 const PAGE_SIZE = 15;
 
 const STATUS_OPTIONS = [
@@ -84,44 +81,43 @@ function getStatusBadgeClass(status: string | null) {
   }
 }
 
+// ─── Component ────────────────────────────────────────────────
 export default function DatabasePage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [history, setHistory] = useState<InspectionWithDetails[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
+  // ── Store ──────────────────────────────────────────────────
+  const { inspections, totalCount, isLoading, fetchInspections, removeById } =
+    useInspectionStore();
 
-  // Delete dialog state
+  // ── Local UI state (pagination + filters + dialogs) ────────
+  const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingPartId, setDeletingPartId] = useState<string>("");
+  const [deletingPartId, setDeletingPartId] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const status = statusFilter === "all" ? undefined : statusFilter;
-    const { data, count } = await getInspections(
-      PAGE_SIZE,
-      page * PAGE_SIZE,
-      status,
-    );
-    setHistory(data);
-    setTotalCount(count);
-    setLoading(false);
-  }, [page, statusFilter]);
+  // ── Fetch when page / statusFilter changes ─────────────────
+  const load = useCallback(() => {
+    fetchInspections({
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    });
+  }, [fetchInspections, page, statusFilter]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    load();
+  }, [load]);
 
   // Reset to page 0 when filter changes
   useEffect(() => {
     setPage(0);
   }, [statusFilter]);
 
-  // ── Client-side search on loaded page data ──────────────
-  const filteredHistory = history.filter((item) => {
+  // ── Client-side search on current page ────────────────────
+  const filteredInspections = inspections.filter((item) => {
     const q = searchTerm.toLowerCase();
     return (
       item.part_id.toLowerCase().includes(q) ||
@@ -132,7 +128,7 @@ export default function DatabasePage() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  // ── Export CSV ───────────────────────────────────────────
+  // ── Export CSV ─────────────────────────────────────────────
   function exportCSV() {
     const headers = [
       "Image ID",
@@ -145,7 +141,7 @@ export default function DatabasePage() {
       "Inspector",
     ];
 
-    const rows = history.map((row) => [
+    const rows = inspections.map((row) => [
       row.part_id,
       row.inspection_date
         ? format(new Date(row.inspection_date), "yyyy-MM-dd HH:mm:ss")
@@ -175,7 +171,7 @@ export default function DatabasePage() {
     URL.revokeObjectURL(url);
   }
 
-  // ── Delete Record ────────────────────────────────────────
+  // ── Delete ─────────────────────────────────────────────────
   function openDeleteDialog(id: string, partId: string) {
     setDeletingId(id);
     setDeletingPartId(partId);
@@ -185,21 +181,28 @@ export default function DatabasePage() {
   async function confirmDelete() {
     if (!deletingId) return;
     setIsDeleting(true);
-    const result = await deleteInspection(deletingId);
+
+    const result = await removeById(deletingId);
+
     if (result.error) {
       alert(`Gagal menghapus: ${result.error}`);
     } else {
-      // Reload current page; if page is now empty go back one
+      // If the current page is now empty after deletion, go back one page
       const newTotal = totalCount - 1;
-      const maxPage = Math.ceil(newTotal / PAGE_SIZE) - 1;
-      if (page > maxPage && maxPage >= 0) setPage(maxPage);
-      else loadData();
+      const maxPage = Math.max(0, Math.ceil(newTotal / PAGE_SIZE) - 1);
+      if (page > maxPage) {
+        setPage(maxPage);
+      } else {
+        load();
+      }
     }
+
     setIsDeleting(false);
     setDeleteDialogOpen(false);
     setDeletingId(null);
   }
 
+  // ─── Render ────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
       {/* ── Page Header ─────────────────────────────────── */}
@@ -216,19 +219,20 @@ export default function DatabasePage() {
           variant="outline"
           size="sm"
           onClick={exportCSV}
-          disabled={loading || history.length === 0}
+          disabled={isLoading || inspections.length === 0}
         >
           <Download className="mr-2 h-4 w-4" />
           Export CSV
         </Button>
       </div>
 
+      {/* ── Table Card ──────────────────────────────────── */}
       <Card>
         <CardHeader className="p-4 sm:p-6 pb-2">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle className="text-xl">
               Database Records
-              {!loading && (
+              {!isLoading && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   ({totalCount} total)
                 </span>
@@ -236,7 +240,7 @@ export default function DatabasePage() {
             </CardTitle>
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              {/* Search */}
+              {/* Search input */}
               <div className="relative w-full sm:w-[220px]">
                 <Input
                   placeholder="Search ID, defect, division..."
@@ -255,7 +259,7 @@ export default function DatabasePage() {
                 )}
               </div>
 
-              {/* Status Filter */}
+              {/* Status filter */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[150px]">
                   <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -285,12 +289,12 @@ export default function DatabasePage() {
                   <TableHead>Validation</TableHead>
                   <TableHead>Division</TableHead>
                   <TableHead className="text-right">Confidence</TableHead>
-                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead className="w-[60px]" />
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {loading ? (
+                {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-32 text-center">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -299,12 +303,13 @@ export default function DatabasePage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : filteredHistory.length > 0 ? (
-                  filteredHistory.map((row) => (
+                ) : filteredInspections.length > 0 ? (
+                  filteredInspections.map((row) => (
                     <TableRow key={row.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium font-mono text-xs">
                         {row.part_id}
                       </TableCell>
+
                       <TableCell className="text-sm">
                         {row.inspection_date
                           ? format(
@@ -313,6 +318,7 @@ export default function DatabasePage() {
                             )
                           : "–"}
                       </TableCell>
+
                       <TableCell>
                         <Badge
                           variant={
@@ -329,6 +335,7 @@ export default function DatabasePage() {
                           {row.ai_result_status === "okay" ? "OKAY" : "NOK"}
                         </Badge>
                       </TableCell>
+
                       <TableCell>
                         <span
                           className={
@@ -340,6 +347,7 @@ export default function DatabasePage() {
                           {row.main_defect ?? "None"}
                         </span>
                       </TableCell>
+
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -348,14 +356,17 @@ export default function DatabasePage() {
                           {row.validation_status ?? "Pending"}
                         </Badge>
                       </TableCell>
+
                       <TableCell className="text-sm text-muted-foreground">
                         {row.divisions?.name ?? "–"}
                       </TableCell>
+
                       <TableCell className="text-right text-sm">
                         {row.ai_confidence_score
                           ? `${row.ai_confidence_score}%`
                           : "–"}
                       </TableCell>
+
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -419,19 +430,22 @@ export default function DatabasePage() {
             </Table>
           </div>
 
-          {/* ── Pagination ─────────────────────────────── */}
+          {/* ── Pagination ──────────────────────────────── */}
           <div className="flex items-center justify-between px-2 sm:px-0 mt-4 pb-4 sm:pb-0">
             <p className="text-xs text-muted-foreground">
-              {loading
+              {isLoading
                 ? "Loading..."
-                : `Showing ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalCount)} of ${totalCount} records`}
+                : `Showing ${Math.min(page * PAGE_SIZE + 1, totalCount)}–${Math.min(
+                    (page + 1) * PAGE_SIZE,
+                    totalCount,
+                  )} of ${totalCount} records`}
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0 || loading}
+                disabled={page === 0 || isLoading}
               >
                 <ChevronLeft className="h-4 w-4" />
                 Previous
@@ -443,7 +457,7 @@ export default function DatabasePage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1 || loading}
+                disabled={page >= totalPages - 1 || isLoading}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />

@@ -59,23 +59,12 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-import {
-  getInspections,
-  getDivisions,
-  updateInspectionStatus,
-  getMonthlyDivisionStats,
-  type InspectionWithDetails,
-  type MonthlyDivisionStatRow,
-} from "@/app/actions/database";
+import type { MonthlyDivisionStatRow } from "@/app/actions/database";
+import { useInspectionStore } from "@/store/use-inspection-store";
+import { useDivisionsStore } from "@/store/use-divisions-store";
+import { useStatsStore } from "@/store/use-stats-store";
 
-// ─── Types ───────────────────────────────────────────────────
-type DivisionItem = {
-  id: string;
-  name: string;
-  desc: string;
-  color: string;
-};
-
+// ─── Types ────────────────────────────────────────────────────
 type ChartRow = {
   month: string;
   [divisionName: string]: string | number;
@@ -83,15 +72,27 @@ type ChartRow = {
 
 type ValidationAction = "Resolved" | "Reworked" | "Scrapped";
 
-// ─── Helpers ─────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80";
+
+const DIVISION_COLORS: Record<string, string> = {
+  "Final Mechanic": "#94a3b8",
+  "Final Electric": "#ef4444",
+  Incoming: "#1d4ed8",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────
+function getDivisionColor(name: string, idx: number): string {
+  if (DIVISION_COLORS[name]) return DIVISION_COLORS[name];
+  const fallbacks = ["#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
+  return fallbacks[idx % fallbacks.length];
+}
 
 function buildChartData(
   rows: MonthlyDivisionStatRow[],
   divisionNames: string[],
 ): ChartRow[] {
-  // Group by "MonYYYY" key
   const map = new Map<string, ChartRow>();
 
   rows.forEach((r) => {
@@ -108,20 +109,29 @@ function buildChartData(
   return Array.from(map.values());
 }
 
-const DIVISION_COLORS: Record<string, string> = {
-  "Final Mechanic": "#94a3b8",
-  "Final Electric": "#ef4444",
-  Incoming: "#1d4ed8",
-};
-
-function getDivisionColor(name: string, idx: number): string {
-  if (DIVISION_COLORS[name]) return DIVISION_COLORS[name];
-  const fallbacks = ["#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
-  return fallbacks[idx % fallbacks.length];
-}
-
-// ─── Component ───────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────
 export default function DetectionResultPage() {
+  // ── Stores ────────────────────────────────────────────────
+  const {
+    inspections,
+    isLoading: inspLoading,
+    fetchInspections,
+    patchStatus,
+  } = useInspectionStore();
+
+  const {
+    divisions: rawDivisions,
+    isLoading: divsLoading,
+    fetchDivisions,
+  } = useDivisionsStore();
+
+  const {
+    monthlyDivisionStats,
+    isLoading: statsLoading,
+    fetchAll: fetchStats,
+  } = useStatsStore();
+
+  // ── Local UI state ────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("Detected");
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -132,14 +142,11 @@ export default function DetectionResultPage() {
     null,
   );
 
-  const [inspections, setInspections] = useState<InspectionWithDetails[]>([]);
-  const [divisions, setDivisions] = useState<DivisionItem[]>([]);
+  // Chart derived state
   const [chartData, setChartData] = useState<ChartRow[]>([]);
   const [divisionNames, setDivisionNames] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [chartLoading, setChartLoading] = useState(true);
 
-  // Validation dialog state
+  // Validation dialog
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
   const [validatingPartId, setValidatingPartId] = useState("");
@@ -148,57 +155,69 @@ export default function DetectionResultPage() {
   const [resolutionNote, setResolutionNote] = useState("");
   const [isValidating, setIsValidating] = useState(false);
 
-  // ── Fetch inspections with optional date filter ─────────────
-  const fetchInspections = useCallback(async () => {
-    setLoading(true);
-    const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined;
-    const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : undefined;
-    const { data } = await getInspections(100, 0, undefined, fromStr, toStr);
-    setInspections(data ?? []);
-    setLoading(false);
-  }, [dateFrom, dateTo]);
+  // Track first render to avoid double fetch
+  const [isFirstRender, setIsFirstRender] = useState(true);
 
-  // ── Fetch chart data ────────────────────────────────────────
-  const fetchChartData = useCallback(async () => {
-    setChartLoading(true);
-    const rows = await getMonthlyDivisionStats(6);
-    const names = Array.from(new Set(rows.map((r) => r.division_name)));
-    setDivisionNames(names);
-    setChartData(buildChartData(rows, names));
-    setChartLoading(false);
-  }, []);
+  // Derived values
+  const divisions = rawDivisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+    desc: d.description ?? "",
+    color: d.color_code ?? "#64748b",
+  }));
 
-  // ── Initial load ────────────────────────────────────────────
+  const loading = inspLoading || divsLoading;
+  const chartLoading = statsLoading;
+  const isFiltered = !!dateFrom || !!dateTo;
+
+  // ── On mount: load all data ───────────────────────────────
   useEffect(() => {
-    async function loadInitial() {
-      setLoading(true);
-      const [divData] = await Promise.all([getDivisions(), fetchChartData()]);
-      setDivisions(
-        (divData ?? []).map((d) => ({
-          id: d.id,
-          name: d.name,
-          desc: d.description ?? "",
-          color: d.color_code ?? "#64748b",
-        })),
-      );
-      await fetchInspections();
-    }
-    loadInitial();
+    fetchDivisions();
+    fetchStats();
+    fetchInspections({ limit: 100, offset: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch when date filters change (only after initial mount)
-  const [isFirstRender, setIsFirstRender] = useState(true);
+  // ── Build chart when monthlyDivisionStats changes ─────────
+  useEffect(() => {
+    if (monthlyDivisionStats.length === 0) return;
+    const names = Array.from(
+      new Set(monthlyDivisionStats.map((r) => r.division_name)),
+    );
+    setDivisionNames(names);
+    setChartData(buildChartData(monthlyDivisionStats, names));
+  }, [monthlyDivisionStats]);
+
+  // ── Re-fetch when date filter changes (skip first render) ──
   useEffect(() => {
     if (isFirstRender) {
       setIsFirstRender(false);
       return;
     }
-    fetchInspections();
+    const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined;
+    const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : undefined;
+    fetchInspections({
+      limit: 100,
+      offset: 0,
+      dateFrom: fromStr,
+      dateTo: toStr,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
 
-  // ── Validation helpers ──────────────────────────────────────
+  // ── Refresh handler ───────────────────────────────────────
+  const handleRefresh = useCallback(() => {
+    const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined;
+    const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : undefined;
+    fetchInspections({
+      limit: 100,
+      offset: 0,
+      dateFrom: fromStr,
+      dateTo: toStr,
+    });
+  }, [fetchInspections, dateFrom, dateTo]);
+
+  // ── Validation helpers ────────────────────────────────────
   function openValidationDialog(
     id: string,
     partId: string,
@@ -214,25 +233,24 @@ export default function DetectionResultPage() {
   async function confirmValidation() {
     if (!validatingId) return;
     setIsValidating(true);
-    const res = await updateInspectionStatus(
+    const result = await patchStatus(
       validatingId,
       validationAction,
       resolutionNote || undefined,
     );
-    if (res.error) {
-      alert(`Gagal update: ${res.error}`);
-    } else {
-      await fetchInspections();
+    if (result.error) {
+      alert(`Gagal update: ${result.error}`);
     }
     setIsValidating(false);
     setValidationDialogOpen(false);
     setValidatingId(null);
   }
 
-  // ── Derived data ────────────────────────────────────────────
+  // ── Derived display data ──────────────────────────────────
   const detectedImages = inspections.map((i) => ({
     id: i.id,
     partId: i.part_id,
+    divisionId: i.division_id,
     date: i.inspection_date
       ? format(new Date(i.inspection_date), "dd MMMM yyyy")
       : "–",
@@ -282,8 +300,7 @@ export default function DetectionResultPage() {
     detectedImages.find((d) => d.id === selectedDetectionId) ??
     detectedImages[0];
 
-  const isFiltered = !!dateFrom || !!dateTo;
-
+  // ── Render ────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
       {/* ── TABS ─────────────────────────────────────────── */}
@@ -313,9 +330,9 @@ export default function DetectionResultPage() {
         ))}
       </div>
 
-      {/* ── TOP: CHART + DIVISIONS ────────────────────────── */}
+      {/* ── TOP: LINE CHART + DIVISION CARDS ─────────────── */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Line Chart – inspections per division per month */}
+        {/* Line Chart */}
         <Card className="lg:col-span-2 shadow-sm border-sidebar-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
@@ -398,9 +415,9 @@ export default function DetectionResultPage() {
           </CardContent>
         </Card>
 
-        {/* Division cards */}
+        {/* Division Cards */}
         <div className="flex flex-col gap-3">
-          {loading ? (
+          {divsLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
             ))
@@ -474,10 +491,9 @@ export default function DetectionResultPage() {
         </div>
       </div>
 
-      {/* ── DATE FILTER TOOLBAR ──────────────────────────── */}
+      {/* ── DATE FILTER TOOLBAR ───────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 mt-2">
         <div className="flex items-center gap-2 bg-card p-1.5 rounded-full border shadow-sm flex-wrap">
-          {/* From */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -500,7 +516,6 @@ export default function DetectionResultPage() {
 
           <span className="text-muted-foreground font-bold px-1">→</span>
 
-          {/* To */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -522,7 +537,6 @@ export default function DetectionResultPage() {
           </Popover>
         </div>
 
-        {/* Clear filter */}
         {isFiltered && (
           <Button
             variant="ghost"
@@ -537,12 +551,11 @@ export default function DetectionResultPage() {
           </Button>
         )}
 
-        {/* Refresh */}
         <Button
           variant="ghost"
           size="icon"
           className="rounded-full ml-auto"
-          onClick={fetchInspections}
+          onClick={handleRefresh}
           disabled={loading}
           title="Refresh data"
         >
@@ -583,10 +596,7 @@ export default function DetectionResultPage() {
           ) : (
             detectedImages
               .filter(
-                (d) =>
-                  !selectedDivision ||
-                  inspections.find((i) => i.id === d.id)?.division_id ===
-                    selectedDivision,
+                (d) => !selectedDivision || d.divisionId === selectedDivision,
               )
               .map((detection) => (
                 <Card
@@ -603,7 +613,6 @@ export default function DetectionResultPage() {
                       alt={detection.mainDefect}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    {/* Validation status badge */}
                     <div className="absolute top-2 right-2">
                       <Badge
                         variant="outline"
@@ -742,7 +751,7 @@ export default function DetectionResultPage() {
         <Card className="border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
           <CardHeader className="bg-emerald-500/10 border-b border-emerald-500/20 pb-4">
             <CardTitle className="flex items-center gap-2 text-emerald-600">
-              <CheckCircle2 className="w-5 h-5" /> Riwayat Inspeksi & Rework
+              <CheckCircle2 className="w-5 h-5" /> Riwayat Inspeksi &amp; Rework
             </CardTitle>
             <CardDescription>
               Daftar komponen yang telah selesai ditindaklanjuti.
@@ -893,7 +902,6 @@ export default function DetectionResultPage() {
                   </div>
                 </div>
 
-                {/* Validation actions (only for Pending) */}
                 {selectedDetection.validationStatus === "Pending" && (
                   <div className="flex gap-2">
                     <Button
@@ -975,7 +983,7 @@ export default function DetectionResultPage() {
         )}
       </Dialog>
 
-      {/* ── VALIDATION CONFIRMATION DIALOG ───────────────── */}
+      {/* ── VALIDATION DIALOG ─────────────────────────────── */}
       <AlertDialog
         open={validationDialogOpen}
         onOpenChange={setValidationDialogOpen}
@@ -1000,7 +1008,6 @@ export default function DetectionResultPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {/* Resolution note input */}
           <div className="my-2 space-y-2">
             <label className="text-sm font-medium">
               Catatan Resolusi{" "}

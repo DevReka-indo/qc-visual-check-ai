@@ -1,55 +1,66 @@
-'use client'
+"use client";
 
-import { useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
-import { useUserStore } from '@/store/use-user-store'
+import { useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { useAuthStore } from "@/store/use-auth-store";
+import type { UserProfileWithDivision } from "@/store/use-auth-store";
 
 export function useAuth() {
-    const { setUser, clearUser, setLoading } = useUserStore()
-    const supabase = createClient()
+  const { setProfile, setAuthEmail, setLoading, clearAuth } = useAuthStore();
+  const supabase = createClient();
 
-    useEffect(() => {
-        const getUserProfile = async (userId: string) => {
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single()
+  useEffect(() => {
+    const fetchAndSetProfile = async (userId: string, email: string) => {
+      setLoading(true);
+      setAuthEmail(email);
 
-            if (data && !error) {
-                setUser(data)
-            } else {
-                clearUser()
-            }
-        }
+      const { data, error } = await supabase
+        .from("users")
+        .select("*, divisions(*)")
+        .eq("id", userId)
+        .single();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                setLoading(true)
-                if (session?.user) {
-                    await getUserProfile(session.user.id)
-                } else {
-                    clearUser()
-                }
-            }
-        )
+      if (data && !error) {
+        setProfile(data as UserProfileWithDivision);
+      } else {
+        clearAuth();
+      }
+    };
 
-        // Initial check
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.user) {
-                await getUserProfile(session.user.id)
-            } else {
-                clearUser()
-            }
-        }
+    // Subscribe to auth state changes (login, logout, token refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await fetchAndSetProfile(session.user.id, session.user.email ?? "");
+      } else {
+        clearAuth();
+      }
+    });
 
-        checkUser()
+    // Initial session check on mount
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchAndSetProfile(session.user.id, session.user.email ?? "");
+      } else {
+        clearAuth();
+      }
+    };
 
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [setUser, clearUser, setLoading, supabase])
+    init();
 
-    return { user: useUserStore((state) => state.user), loading: useUserStore((state) => state.loading) }
+    return () => {
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return {
+    profile: useAuthStore((s) => s.profile),
+    authEmail: useAuthStore((s) => s.authEmail),
+    isLoading: useAuthStore((s) => s.isLoading),
+  };
 }

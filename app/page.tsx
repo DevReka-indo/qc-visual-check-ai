@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect } from "react";
 import {
   Upload,
   FileImage,
@@ -22,91 +21,64 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getInspections, getUserProfile } from "@/app/actions/database";
+
+import { useDetectionStore } from "@/store/use-detection-store";
+import { useAuthStore } from "@/store/use-auth-store";
+import { useInspectionStore } from "@/store/use-inspection-store";
 
 export default function HomePage() {
-  const router = useRouter();
+  // ── Stores ────────────────────────────────────────────────────
+  const {
+    selectedImage,
+    selectedFile,
+    isDetecting,
+    isUploading,
+    result,
+    confidence,
+    defectBox,
+    recentDetections,
+    setFile,
+    runDetection,
+    setRecentDetections,
+    reset,
+  } = useDetectionStore();
 
-  // --- STATE MANAGEMENT ---
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [result, setResult] = useState<{
-    status: "okay" | "not_okay";
-    reason?: string;
-  } | null>(null);
-  const [confidence, setConfidence] = useState<number>(0);
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const profile = useAuthStore((s) => s.profile);
+  const { inspections, fetchInspections } = useInspectionStore();
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [defectBox, setDefectBox] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  const [recentDetections, setRecentDetections] = useState<
-    { id: string; status: string; time: string }[]
-  >([]);
-  const [userDivision, setUserDivision] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  // ── Local UI-only state (drag & drop) ─────────────────────────
+  const [isDragging, setIsDragging] = React.useState(false);
 
-  // --- LOGIKA PROTEKSI LOGIN & FETCH DATA ---
+  // ── On mount: load 3 recent detections ───────────────────────
   useEffect(() => {
-    setIsAuthorized(true);
+    fetchInspections({ limit: 3 });
+  }, [fetchInspections]);
 
-    const loadInitialData = async () => {
-      const {
-        data: { user },
-      } = await (await import("@/utils/supabase/client"))
-        .createClient()
-        .auth.getUser();
-      if (user) {
-        const profile = await getUserProfile(user.id);
-        if (profile?.division_id) setUserDivision(profile.division_id);
-      }
-
-      const { data } = await getInspections(3);
-      if (data) {
-        setRecentDetections(
-          data.map((i) => ({
-            id: i.part_id,
-            status: i.ai_result_status === "okay" ? "okay" : "not_okay",
-            time: new Date(
-              i.inspection_date || new Date(),
-            ).toLocaleDateString(),
-          })),
-        );
-      }
-    };
-
-    loadInitialData();
-  }, []);
-
-  // --- EFFECT UNTUK GENERATE ANGKA RANDOM ---
+  // ── Sync store's recentDetections from inspection store ───────
   useEffect(() => {
-    if (isAuthorized && result) {
-      const randomVal = Number((Math.random() * 10 + 89).toFixed(1));
-      setConfidence(randomVal);
-    }
-  }, [result, isAuthorized]);
+    if (inspections.length === 0) return;
+    setRecentDetections(
+      inspections.slice(0, 3).map((i) => ({
+        id: i.part_id,
+        status: i.ai_result_status === "okay" ? "okay" : "not_okay",
+        time: new Date(i.inspection_date ?? new Date()).toLocaleDateString(
+          "id-ID",
+        ),
+      })),
+    );
+  }, [inspections, setRecentDetections]);
 
-  // --- HANDLERS ---
+  // ── File handlers ─────────────────────────────────────────────
   const processFile = (file: File) => {
-    if (file && file.type.startsWith("image/")) {
-      const imageUrl = URL.createObjectURL(file);
-      setSelectedImage(imageUrl);
-      setSelectedFile(file);
-      setResult(null);
-      setDefectBox(null);
-    }
+    if (file.type.startsWith("image/")) setFile(file);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -124,124 +96,12 @@ export default function HomePage() {
     if (file) processFile(file);
   };
 
-  // --- UPLOAD IMAGE TO SUPABASE STORAGE ---
-  const uploadImageToStorage = async (
-    file: File,
-    partId: string,
-  ): Promise<string | null> => {
-    try {
-      const { createClient } = await import("@/utils/supabase/client");
-      const supabase = createClient();
-
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const fileName = `inspections/${Date.now()}-${partId}.${ext}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("inspection_images")
-        .upload(fileName, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error("Error uploading image:", uploadError);
-        return null;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("inspection_images")
-        .getPublicUrl(uploadData.path);
-
-      return urlData.publicUrl;
-    } catch (err) {
-      console.error("Unexpected upload error:", err);
-      return null;
-    }
+  // ── Detection ─────────────────────────────────────────────────
+  const handleDetection = () => {
+    runDetection(profile?.division_id ?? null);
   };
 
-  const handleDetection = async () => {
-    if (!selectedImage || !selectedFile) return;
-    setIsDetecting(true);
-    setIsUploading(true);
-    setResult(null);
-    setDefectBox(null);
-
-    const partId = `BG-${Math.floor(Math.random() * 9000) + 1000}`;
-
-    // 1. Upload gambar ke Supabase Storage
-    const uploadedImageUrl = await uploadImageToStorage(selectedFile, partId);
-    setIsUploading(false);
-
-    // Simulasi Deep Learning Process
-    setTimeout(async () => {
-      setIsDetecting(false);
-      const isOkay = Math.random() > 0.5;
-      const simulatedConfidence = Number((Math.random() * 10 + 89).toFixed(1));
-
-      let finalResult: { status: "okay" | "not_okay"; reason?: string };
-      let anomalies: {
-        defect_type: string;
-        location: string;
-        description: string;
-        confidence_score: number;
-        bounding_box?: Record<string, unknown>;
-      }[] = [];
-
-      if (isOkay) {
-        finalResult = { status: "okay" };
-      } else {
-        const defects = [
-          "Terdeteksi Baret",
-          "Terdeteksi Lengkung",
-          "Terdeteksi Cat Meleber",
-        ];
-        const randomDefect =
-          defects[Math.floor(Math.random() * defects.length)];
-        finalResult = { status: "not_okay", reason: randomDefect };
-
-        const box = {
-          top: Math.floor(Math.random() * 40) + 20,
-          left: Math.floor(Math.random() * 40) + 20,
-          width: Math.floor(Math.random() * 20) + 15,
-          height: Math.floor(Math.random() * 20) + 15,
-        };
-        setDefectBox(box);
-
-        anomalies.push({
-          defect_type: randomDefect,
-          location: "Visual Surface",
-          description: `Simulated anomaly detected: ${randomDefect}`,
-          confidence_score: simulatedConfidence,
-          bounding_box: box,
-        });
-      }
-
-      setResult(finalResult);
-
-      // 2. Save ke Supabase dengan URL gambar yang sudah di-upload
-      const { saveInspection } = await import("@/app/actions/database");
-      await saveInspection({
-        part_id: partId,
-        division_id: userDivision,
-        image_url: uploadedImageUrl, // pakai URL dari Storage, bukan blob
-        ai_result_status: finalResult.status,
-        main_defect: finalResult.reason ?? "None",
-        ai_confidence_score: simulatedConfidence,
-        anomalies,
-      });
-
-      // 3. Update recent list
-      setRecentDetections((prev) =>
-        [
-          { id: partId, status: finalResult.status, time: "Just now" },
-          ...prev,
-        ].slice(0, 3),
-      );
-    }, 2500);
-  };
-
-  if (!isAuthorized) return null;
-
+  // ── Dynamic card class ────────────────────────────────────────
   const resultCardClass = result
     ? result.status === "okay"
       ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
@@ -254,16 +114,16 @@ export default function HomePage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @keyframes scan {
-          0% { top: 0%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-        .animate-scan {
-          animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-      `,
+            @keyframes scan {
+              0%   { top: 0%;   opacity: 0; }
+              10%  { opacity: 1; }
+              90%  { opacity: 1; }
+              100% { top: 100%; opacity: 0; }
+            }
+            .animate-scan {
+              animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            }
+          `,
         }}
       />
 
@@ -278,7 +138,7 @@ export default function HomePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* INPUT CARD - DENGAN DRAG & DROP */}
+        {/* ── INPUT CARD ─────────────────────────────────────── */}
         <Card className="flex flex-col border-sidebar-border shadow-sm overflow-hidden relative">
           <CardHeader className="bg-muted/30 border-b">
             <CardTitle className="flex items-center gap-2">
@@ -286,7 +146,7 @@ export default function HomePage() {
               Vision Scanner
             </CardTitle>
             <CardDescription>
-              Drag & drop gambar atau klik untuk memilih file.
+              Drag &amp; drop gambar atau klik untuk memilih file.
             </CardDescription>
           </CardHeader>
 
@@ -311,24 +171,24 @@ export default function HomePage() {
                     className="max-h-[300px] object-contain rounded-md shadow-sm z-10"
                   />
 
-                  {/* Efek Scanning Laser */}
+                  {/* Scanning effect */}
                   {isDetecting && (
                     <div className="absolute inset-0 z-20 overflow-hidden rounded-md pointer-events-none">
-                      <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
+                      <div className="absolute inset-0 bg-primary/10 animate-pulse" />
                       {isUploading ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                          <div className="w-8 h-8 border-2 border-[#0d6efd] border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-8 h-8 border-2 border-[#0d6efd] border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs text-[#0d6efd] font-medium bg-background/80 px-2 py-1 rounded">
                             Uploading image...
                           </span>
                         </div>
                       ) : (
-                        <div className="absolute w-full h-1 bg-[#0d6efd] shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0"></div>
+                        <div className="absolute w-full h-1 bg-[#0d6efd] shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0" />
                       )}
                     </div>
                   )}
 
-                  {/* Bounding Box Hasil Deteksi */}
+                  {/* Bounding box overlay */}
                   {defectBox && result?.status === "not_okay" && (
                     <div
                       className="absolute z-20 border-2 border-destructive bg-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-all duration-500 ease-out animate-in zoom-in-50"
@@ -348,7 +208,7 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Layer Transparan untuk Klik Ulang (Ganti Gambar) */}
+                  {/* Hover overlay to re-select image */}
                   {!isDetecting && (
                     <label className="absolute inset-0 cursor-pointer w-full h-full z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity rounded-md">
                       <span className="bg-background text-foreground px-4 py-2 rounded-lg font-medium shadow-lg flex items-center gap-2">
@@ -395,12 +255,7 @@ export default function HomePage() {
           <CardFooter className="flex justify-between border-t p-4 bg-muted/10 gap-4">
             <Button
               variant="outline"
-              onClick={() => {
-                setSelectedImage(null);
-                setSelectedFile(null);
-                setResult(null);
-                setDefectBox(null);
-              }}
+              onClick={reset}
               disabled={!selectedImage || isDetecting}
               className="w-24"
             >
@@ -413,7 +268,7 @@ export default function HomePage() {
             >
               {isDetecting ? (
                 <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   {isUploading ? "Mengupload Gambar..." : "Menganalisis..."}
                 </span>
               ) : (
@@ -423,9 +278,9 @@ export default function HomePage() {
           </CardFooter>
         </Card>
 
-        {/* KOLOM KANAN: HASIL & AKTIVITAS */}
+        {/* ── KANAN: HASIL & AKTIVITAS ────────────────────────── */}
         <div className="flex flex-col gap-6">
-          {/* ANALYSIS RESULT CARD */}
+          {/* Analysis Result Card */}
           <Card
             className={`flex flex-col transition-all duration-500 ${resultCardClass}`}
           >
@@ -439,8 +294,8 @@ export default function HomePage() {
               {isDetecting ? (
                 <div className="flex flex-col items-center justify-center h-[200px] space-y-4">
                   <div className="relative">
-                    <div className="w-16 h-16 border-4 border-muted rounded-full"></div>
-                    <div className="w-16 h-16 border-4 border-[#0d6efd] border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                    <div className="w-16 h-16 border-4 border-muted rounded-full" />
+                    <div className="w-16 h-16 border-4 border-[#0d6efd] border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
                   </div>
                   <p className="text-sm font-medium animate-pulse text-[#0d6efd]">
                     {isUploading
@@ -450,8 +305,13 @@ export default function HomePage() {
                 </div>
               ) : result ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                  {/* Status row */}
                   <div
-                    className={`flex items-center justify-between p-5 border rounded-xl ${result.status === "okay" ? "bg-emerald-500/10 border-emerald-500/30" : "bg-destructive/10 border-destructive/30"}`}
+                    className={`flex items-center justify-between p-5 border rounded-xl ${
+                      result.status === "okay"
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : "bg-destructive/10 border-destructive/30"
+                    }`}
                   >
                     <div className="flex items-center gap-4">
                       {result.status === "okay" ? (
@@ -474,7 +334,11 @@ export default function HomePage() {
                       variant={
                         result.status === "okay" ? "outline" : "destructive"
                       }
-                      className={`text-base px-4 py-2 shadow-sm ${result.status === "okay" ? "bg-emerald-500 text-white border-transparent" : "animate-pulse"}`}
+                      className={`text-base px-4 py-2 shadow-sm ${
+                        result.status === "okay"
+                          ? "bg-emerald-500 text-white border-transparent"
+                          : "animate-pulse"
+                      }`}
                     >
                       {result.status === "okay"
                         ? "PASSED (OK)"
@@ -482,6 +346,7 @@ export default function HomePage() {
                     </Badge>
                   </div>
 
+                  {/* Anomaly alert */}
                   {result.status === "not_okay" && (
                     <Alert
                       variant="destructive"
@@ -502,22 +367,31 @@ export default function HomePage() {
                     </Alert>
                   )}
 
+                  {/* Confidence bar */}
                   <div className="space-y-3 p-5 bg-muted/20 rounded-xl border border-muted-foreground/10">
                     <div className="flex justify-between items-center">
                       <h4 className="text-sm font-medium text-muted-foreground">
                         Confidence Level (Akurasi)
                       </h4>
                       <p
-                        className={`text-lg font-bold ${result.status === "okay" ? "text-emerald-500" : "text-destructive"}`}
+                        className={`text-lg font-bold ${
+                          result.status === "okay"
+                            ? "text-emerald-500"
+                            : "text-destructive"
+                        }`}
                       >
                         {confidence}%
                       </p>
                     </div>
                     <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
                       <div
-                        className={`h-full transition-all duration-1000 ease-out ${result.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`}
+                        className={`h-full transition-all duration-1000 ease-out ${
+                          result.status === "okay"
+                            ? "bg-emerald-500"
+                            : "bg-destructive"
+                        }`}
                         style={{ width: `${confidence}%` }}
-                      ></div>
+                      />
                     </div>
                   </div>
                 </div>
@@ -532,7 +406,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          {/* RECENT ACTIVITY CARD */}
+          {/* Recent Activity Card */}
           <Card className="border-sidebar-border shadow-sm">
             <CardHeader className="py-4 pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -554,8 +428,12 @@ export default function HomePage() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-2 h-2 rounded-full ${item.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`}
-                        ></div>
+                          className={`w-2 h-2 rounded-full ${
+                            item.status === "okay"
+                              ? "bg-emerald-500"
+                              : "bg-destructive"
+                          }`}
+                        />
                         <span className="text-sm font-medium">{item.id}</span>
                       </div>
                       <span className="text-xs text-muted-foreground">
