@@ -25,6 +25,9 @@ export async function updateSession(request: NextRequest) {
                     )
                 },
             },
+            cookieOptions: {
+                maxAge: 60 * 60 * 24, // 24 hours
+            }
         }
     )
 
