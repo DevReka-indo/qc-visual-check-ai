@@ -83,11 +83,8 @@ export const useStatsStore = create<StatsState>()(
       isLoading: false,
       lastFetchedAt: null,
 
-      // ── fetchAll ──────────────────────────────────────
-      // Fetches stats + distribution + monthly data in one shot.
-      // Pass { force: true } to bypass the cache TTL.
       fetchAll: async ({ force = false } = {}) => {
-        const { lastFetchedAt, isLoading } = get();
+        const { lastFetchedAt, isLoading, stats } = get();
 
         // Skip if already loading
         if (isLoading) return;
@@ -101,27 +98,20 @@ export const useStatsStore = create<StatsState>()(
           return;
         }
 
-        set({ isLoading: true }, false, "stats/fetchAllStart");
+        // Only show loading state if we don't have stats yet (silent refresh if we do)
+        if (!stats) {
+          set({ isLoading: true }, false, "stats/fetchAllStart");
+        }
 
         try {
-          const [
-            { getDashboardStats },
-            { getDefectDistribution },
-            { getMonthlyStats },
-            { getMonthlyDivisionStats },
-          ] = await Promise.all([
-            import("@/app/actions/database"),
-            import("@/app/actions/database"),
-            import("@/app/actions/database"),
-            import("@/app/actions/database"),
-          ]);
+          const db = await import("@/app/actions/database");
 
           const [statsData, distData, monthlyRaw, monthlyDivRaw] =
             await Promise.all([
-              getDashboardStats(),
-              getDefectDistribution(),
-              getMonthlyStats(6),
-              getMonthlyDivisionStats(6),
+              db.getDashboardStats(),
+              db.getDefectDistribution(),
+              db.getMonthlyStats(6),
+              db.getMonthlyDivisionStats(6),
             ]);
 
           const monthlyRows = (monthlyRaw as MonthlyStatRow[]) ?? [];

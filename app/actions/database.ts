@@ -367,3 +367,34 @@ export async function getDefectDistribution() {
 
   return Object.entries(distribution).map(([name, value]) => ({ name, value }));
 }
+
+// ─────────────────────────────────────────────
+// EMPLOYEE ID GENERATOR
+// ─────────────────────────────────────────────
+
+export async function getNextEmployeeId() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("employee_id")
+    .like("employee_id", "REKA-QC-%");
+
+  if (error) {
+    console.error("Error fetching latest employee ID:", error);
+    return "REKA-QC-001";
+  }
+
+  const seqIds = data
+    .map((u) => u.employee_id?.match(/REKA-QC-(\d{3,})/)?.[1])
+    .filter(Boolean)
+    .map(Number)
+    .sort((a, b) => b - a);
+
+  if (seqIds.length === 0) {
+    return "REKA-QC-001";
+  }
+
+  const nextNum = seqIds[0] + 1;
+  return `REKA-QC-${String(nextNum).padStart(3, "0")}`;
+}

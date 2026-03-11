@@ -5,19 +5,23 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Lock, User, Mail, CreditCard, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from 'next/link';
 import { signUp } from '@/app/actions/auth';
+import { getNextEmployeeId } from '@/app/actions/database';
 import { getFriendlyAuthError } from '@/lib/utils';
 
 export default function RegisterPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [generatedId, setGeneratedId] = useState("");
+    const [generatedId, setGeneratedId] = useState("Loading...");
     const [showPassword, setShowPassword] = useState(false);
 
-    // Generate random Employee ID on mount
+    // Generate sequential Employee ID on mount
     React.useEffect(() => {
-        const randomNum = Math.floor(1000 + Math.random() * 9000);
-        setGeneratedId(`REKA-QC-${randomNum}`);
+        const fetchId = async () => {
+            const nextId = await getNextEmployeeId();
+            setGeneratedId(nextId);
+        };
+        fetchId();
     }, []);
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
