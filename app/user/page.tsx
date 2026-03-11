@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import { useAuthStore } from "@/store/use-auth-store";
 import { useStatsStore } from "@/store/use-stats-store";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { WorkHoursCard } from "@/components/WorkHoursCard";
 import {
   updateUserProfile,
   getDivisions,
@@ -337,28 +338,10 @@ export default function UserPage() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow col-span-2 md:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Jam Kerja Aktif
-            </CardTitle>
-            <div className="p-1.5 md:p-2 bg-orange-500/10 rounded-full shrink-0">
-              <Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 md:px-6">
-            {statsLoading ? (
-              <div className="h-7 md:h-8 w-14 md:w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-xl md:text-2xl font-bold">
-                {stats?.active_hours ?? 0} Jam
-              </div>
-            )}
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
-              Total Bulan Ini
-            </p>
-          </CardContent>
-        </Card>
+        <WorkHoursCard 
+          activeHours={stats?.active_hours ?? 0} 
+          isLoading={statsLoading} 
+        />
       </div>
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-7">
