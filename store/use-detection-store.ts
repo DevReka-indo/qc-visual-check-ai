@@ -41,6 +41,7 @@ interface DetectionState {
   // Detection state
   isDetecting: boolean;
   isUploading: boolean;
+  isCompressing: boolean;
   result: DetectionResult | null;
   confidence: number;
   defectBox: BoundingBox | null;
@@ -49,13 +50,28 @@ interface DetectionState {
   recentDetections: RecentDetection[];
 
   // Actions
-  setFile: (file: File) => void;
+  setFile: (file: File) => Promise<void>;
   runDetection: (divisionId: string | null) => Promise<void>;
   setRecentDetections: (items: RecentDetection[]) => void;
   reset: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function compressImage(file: File): Promise<File> {
+  try {
+    const imageCompression = (await import("browser-image-compression")).default;
+    const options = {
+      maxSizeMB: 1, // Max 1MB after compression
+      maxWidthOrHeight: 1280,
+      useWebWorker: true,
+    };
+    return await imageCompression(file, options);
+  } catch (error) {
+    console.error("Compression error:", error);
+    return file; // Fallback to original if compression fails
+  }
+}
 
 async function uploadToStorage(
   file: File,
@@ -141,6 +157,7 @@ export const useDetectionStore = create<DetectionState>()(
       selectedFile: null,
       isDetecting: false,
       isUploading: false,
+      isCompressing: false,
       result: null,
       confidence: 0,
       defectBox: null,
@@ -148,22 +165,28 @@ export const useDetectionStore = create<DetectionState>()(
 
       // ── setFile ────────────────────────────────────────
       // Called when user selects / drops an image file
-      setFile: (file: File) => {
+      setFile: async (file: File) => {
+        set({ isCompressing: true }, false, "setFile/start");
+
         // Revoke previous blob URL to avoid memory leaks
         const prev = get().selectedImage;
         if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
 
-        const imageUrl = URL.createObjectURL(file);
+        // Auto-compress before setting
+        const compressed = await compressImage(file);
+        const imageUrl = URL.createObjectURL(compressed);
+
         set(
           {
             selectedImage: imageUrl,
-            selectedFile: file,
+            selectedFile: compressed,
+            isCompressing: false,
             result: null,
             defectBox: null,
             confidence: 0,
           },
           false,
-          "setFile",
+          "setFile/done",
         );
       },
 
@@ -257,6 +280,7 @@ export const useDetectionStore = create<DetectionState>()(
             confidence: 0,
             isDetecting: false,
             isUploading: false,
+            isCompressing: false,
           },
           false,
           "reset",

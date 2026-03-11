@@ -34,6 +34,7 @@ export default function HomePage() {
     selectedFile,
     isDetecting,
     isUploading,
+    isCompressing,
     result,
     confidence,
     defectBox,
@@ -49,6 +50,7 @@ export default function HomePage() {
 
   // ── Local UI-only state (drag & drop) ─────────────────────────
   const [isDragging, setIsDragging] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   // ── On mount: load 3 recent detections ───────────────────────
   useEffect(() => {
@@ -71,7 +73,19 @@ export default function HomePage() {
 
   // ── File handlers ─────────────────────────────────────────────
   const processFile = (file: File) => {
-    if (file.type.startsWith("image/")) setFile(file);
+    setError(null);
+    if (!file.type.startsWith("image/")) {
+      setError("File harus berupa gambar.");
+      return;
+    }
+
+    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    if (file.size > MAX_SIZE) {
+      setError("Ukuran gambar maksimal adalah 2MB. Silakan pilih gambar yang lebih kecil.");
+      return;
+    }
+
+    setFile(file);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +152,14 @@ export default function HomePage() {
       </div>
 
       {/* ── Main Grid ────────────────────────────────────────── */}
+      {error && (
+        <Alert variant="destructive" className="animate-in slide-in-from-top-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 md:gap-6 md:grid-cols-2">
         {/* ── INPUT CARD ───────────────────────────────────── */}
         <Card className="flex flex-col border-sidebar-border shadow-sm overflow-hidden relative">
@@ -172,15 +194,15 @@ export default function HomePage() {
                     className="max-h-[240px] md:max-h-[300px] object-contain rounded-md shadow-sm z-10"
                   />
 
-                  {/* Scanning effect */}
-                  {isDetecting && (
+                  {/* Scanning/Processing effect */}
+                  {(isDetecting || isCompressing) && (
                     <div className="absolute inset-0 z-20 overflow-hidden rounded-md pointer-events-none">
                       <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-                      {isUploading ? (
+                      {isUploading || isCompressing ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs text-primary font-medium bg-background/80 px-2 py-1 rounded">
-                            Uploading image...
+                            {isCompressing ? "Compressing image..." : "Uploading image..."}
                           </span>
                         </div>
                       ) : (
@@ -245,7 +267,7 @@ export default function HomePage() {
                       atau klik untuk menelusuri folder
                     </p>
                     <Badge variant="secondary" className="mt-3 md:mt-4 text-xs">
-                      PNG, JPG, JPEG (Max 10MB)
+                      PNG, JPG, JPEG (Max 2MB)
                     </Badge>
                   </div>
                 </>
@@ -256,15 +278,18 @@ export default function HomePage() {
           <CardFooter className="flex justify-between border-t p-3 md:p-4 bg-muted/10 gap-3">
             <Button
               variant="outline"
-              onClick={reset}
-              disabled={!selectedImage || isDetecting}
+              onClick={() => {
+                reset();
+                setError(null);
+              }}
+              disabled={!selectedImage || isDetecting || isCompressing}
               className="w-20 md:w-24 text-sm"
             >
               Clear
             </Button>
             <Button
               onClick={handleDetection}
-              disabled={!selectedImage || !selectedFile || isDetecting}
+              disabled={!selectedImage || !selectedFile || isDetecting || isCompressing}
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all hover:scale-[1.01] text-sm"
             >
               {isDetecting ? (
