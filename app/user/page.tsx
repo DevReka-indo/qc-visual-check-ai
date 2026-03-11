@@ -154,11 +154,21 @@ export default function UserPage() {
 
   // ─── Render ───────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6 font-gelasio animate-in fade-in duration-500">
+    <div className="space-y-4 md:space-y-6 font-gelasio animate-in fade-in duration-500 w-full max-w-[1600px] mx-auto pb-10">
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-serif">
+          User Profile
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">
+          Kelola profil, keamanan akun, dan statistik aktivitas Anda.
+        </p>
+      </div>
+
       {/* ── PROFILE HEADER ──────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 bg-card p-6 rounded-xl border shadow-sm">
-        <div className="relative">
-          <Avatar className="h-24 w-24 border-4 border-primary/10 shadow-lg">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6 bg-card p-4 md:p-6 rounded-xl border shadow-sm">
+        <div className="relative shrink-0">
+          <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-primary/10 shadow-lg">
             <AvatarImage
               src={profile?.avatar_url ?? undefined}
               alt="User Profile"
@@ -173,17 +183,17 @@ export default function UserPage() {
           </Avatar>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {authLoading ? (
-              <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-7 md:h-8 w-40 md:w-48 bg-muted animate-pulse rounded" />
             ) : (
               <>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h2 className="text-xl md:text-3xl font-bold tracking-tight truncate">
                   {profile?.full_name ?? "User"}
-                </h1>
+                </h2>
                 <Badge
-                  className={`border-transparent hover:bg-transparent ${
+                  className={`border-transparent hover:bg-transparent text-[10px] md:text-xs ${
                     profile?.status === "online"
                       ? "bg-green-500/10 text-green-600"
                       : "bg-red-500/10 text-red-600"
@@ -195,27 +205,36 @@ export default function UserPage() {
             )}
           </div>
 
-          <p className="text-muted-foreground flex items-center gap-2">
-            <Mail className="h-4 w-4" />
+          <p className="text-muted-foreground flex items-center gap-1.5 text-xs md:text-sm">
+            <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
             {authLoading ? (
               <span className="h-4 w-40 bg-muted animate-pulse rounded inline-block" />
             ) : (
-              displayEmail
+              <span className="truncate">{displayEmail}</span>
             )}
           </p>
 
-          <div className="flex gap-2 mt-2 flex-wrap">
+          <div className="flex gap-1.5 md:gap-2 mt-1.5 md:mt-2 flex-wrap">
             {authLoading ? (
-              <div className="h-6 w-32 bg-muted animate-pulse rounded-full" />
+              <div className="h-5 md:h-6 w-32 bg-muted animate-pulse rounded-full" />
             ) : (
               <>
-                <Badge variant="outline" className="font-medium">
+                <Badge
+                  variant="outline"
+                  className="font-medium text-[10px] md:text-xs"
+                >
                   {profile?.employee_id ?? "—"}
                 </Badge>
-                <Badge variant="secondary" className="font-medium italic">
+                <Badge
+                  variant="secondary"
+                  className="font-medium italic text-[10px] md:text-xs"
+                >
                   {profile?.divisions?.name ?? "No Division"}
                 </Badge>
-                <Badge variant="outline" className="font-medium capitalize">
+                <Badge
+                  variant="outline"
+                  className="font-medium capitalize text-[10px] md:text-xs"
+                >
                   {profile?.role ?? "operator"}
                 </Badge>
               </>
@@ -223,87 +242,93 @@ export default function UserPage() {
           </div>
         </div>
 
-        <div className="md:ml-auto">
-          <Button size="sm" variant="outline">
+        <div className="sm:ml-auto shrink-0">
+          <Button size="sm" variant="outline" className="text-xs md:text-sm">
             Unduh Report
           </Button>
         </div>
       </div>
 
       {/* ── STATS OVERVIEW ──────────────────────────────────── */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Inspeksi
             </CardTitle>
-            <div className="p-2 bg-blue-500/10 rounded-full">
-              <FileCheck className="h-4 w-4 text-blue-500" />
+            <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-full shrink-0">
+              <FileCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 md:px-6">
             {statsLoading ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+              <div className="h-7 md:h-8 w-14 md:w-16 bg-muted animate-pulse rounded" />
             ) : (
-              <div className="text-2xl font-bold">
+              <div className="text-xl md:text-2xl font-bold">
                 {stats?.total_inspections ?? 0}
               </div>
             )}
-            <p className="text-xs text-green-500 font-medium">(Bulan ini)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Akurasi Deteksi
-            </CardTitle>
-            <div className="p-2 bg-green-500/10 rounded-full">
-              <Target className="h-4 w-4 text-green-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold">
-                {stats?.accuracy_percentage ?? 0}%
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Standar industri: {stats?.accuracy_percentage ?? 0}%
+            <p className="text-[10px] md:text-xs text-green-500 font-medium mt-1">
+              (Bulan ini)
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Jam Kerja Aktif
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+              Akurasi Deteksi
             </CardTitle>
-            <div className="p-2 bg-orange-500/10 rounded-full">
-              <Clock className="h-4 w-4 text-orange-500" />
+            <div className="p-1.5 md:p-2 bg-green-500/10 rounded-full shrink-0">
+              <Target className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 md:px-6">
             {statsLoading ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+              <div className="h-7 md:h-8 w-14 md:w-16 bg-muted animate-pulse rounded" />
             ) : (
-              <div className="text-2xl font-bold">
+              <div className="text-xl md:text-2xl font-bold">
+                {stats?.accuracy_percentage ?? 0}%
+              </div>
+            )}
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+              Standar industri: {stats?.accuracy_percentage ?? 0}%
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow col-span-2 md:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+              Jam Kerja Aktif
+            </CardTitle>
+            <div className="p-1.5 md:p-2 bg-orange-500/10 rounded-full shrink-0">
+              <Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 md:px-6">
+            {statsLoading ? (
+              <div className="h-7 md:h-8 w-14 md:w-16 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="text-xl md:text-2xl font-bold">
                 {stats?.active_hours ?? 0} Jam
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Total Bulan Ini</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+              Total Bulan Ini
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-7">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-7">
         {/* ── LEFT: ACCOUNT SETTINGS ────────────────────── */}
         <Card className="md:col-span-4">
-          <CardHeader>
-            <CardTitle>Pengaturan Akun</CardTitle>
-            <CardDescription>
+          <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
+            <CardTitle className="text-base md:text-lg">
+              Pengaturan Akun
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
               Kelola detail data diri dan autentikasi Anda.
             </CardDescription>
           </CardHeader>
@@ -316,7 +341,10 @@ export default function UserPage() {
 
               {/* ── Tab: Profile ── */}
               <TabsContent value="profile">
-                <form onSubmit={handleSaveProfile} className="space-y-4">
+                <form
+                  onSubmit={handleSaveProfile}
+                  className="space-y-3 md:space-y-4"
+                >
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Nama Lengkap</label>
                     <div className="relative">
@@ -386,7 +414,7 @@ export default function UserPage() {
 
                   <Button
                     type="submit"
-                    className="w-full md:w-auto mt-2"
+                    className="w-full md:w-auto mt-2 text-sm"
                     disabled={isSavingProfile || authLoading}
                   >
                     {isSavingProfile ? (
@@ -474,7 +502,7 @@ export default function UserPage() {
                   <Button
                     type="submit"
                     variant="destructive"
-                    className="w-full md:w-auto mt-2"
+                    className="w-full md:w-auto mt-2 text-sm"
                     disabled={isUpdatingPassword}
                   >
                     {isUpdatingPassword ? (
@@ -493,41 +521,47 @@ export default function UserPage() {
         </Card>
 
         {/* ── RIGHT: INFO CARDS ──────────────────────────── */}
-        <div className="md:col-span-3 space-y-6">
+        <div className="md:col-span-3 space-y-4 md:space-y-6">
           {/* Access Status */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-primary" />
+            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 Status Akses
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4 px-4 pb-4 md:px-6">
               <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-sm text-muted-foreground">Role</span>
+                <span className="text-xs md:text-sm text-muted-foreground">
+                  Role
+                </span>
                 {authLoading ? (
                   <div className="h-5 w-24 bg-muted animate-pulse rounded" />
                 ) : (
-                  <Badge variant="secondary" className="capitalize">
+                  <Badge variant="secondary" className="capitalize text-xs">
                     {profile?.role ?? "operator"}
                   </Badge>
                 )}
               </div>
 
               <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs md:text-sm text-muted-foreground">
                   Tingkat Izin
                 </span>
-                <span className="text-sm font-medium">Read & Write</span>
+                <span className="text-xs md:text-sm font-medium">
+                  Read & Write
+                </span>
               </div>
 
               <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-xs md:text-sm text-muted-foreground">
+                  Status
+                </span>
                 {authLoading ? (
                   <div className="h-5 w-16 bg-muted animate-pulse rounded" />
                 ) : (
                   <Badge
-                    className={`border-transparent ${
+                    className={`border-transparent text-xs ${
                       profile?.status === "online"
                         ? "bg-green-500/10 text-green-600"
                         : "bg-slate-500/10 text-slate-600"
@@ -539,13 +573,13 @@ export default function UserPage() {
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs md:text-sm text-muted-foreground">
                   Terakhir Login
                 </span>
                 {authLoading ? (
                   <div className="h-4 w-36 bg-muted animate-pulse rounded" />
                 ) : (
-                  <span className="text-sm font-medium">
+                  <span className="text-xs md:text-sm font-medium">
                     {displayLastLogin}
                   </span>
                 )}
@@ -555,27 +589,27 @@ export default function UserPage() {
 
           {/* Pending Anomalies */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
+              <CardTitle className="text-xs md:text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Anomali Pending
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 md:px-6">
               {statsLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {[1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className="h-10 bg-muted animate-pulse rounded"
+                      className="h-8 md:h-10 bg-muted animate-pulse rounded"
                     />
                   ))}
                 </div>
               ) : stats && stats.pending_tasks > 0 ? (
-                <div className="flex flex-col items-center justify-center py-4 gap-2 text-amber-600">
-                  <div className="text-4xl font-bold">
+                <div className="flex flex-col items-center justify-center py-3 md:py-4 gap-2 text-amber-600">
+                  <div className="text-3xl md:text-4xl font-bold">
                     {stats.pending_tasks}
                   </div>
-                  <p className="text-sm text-muted-foreground text-center">
+                  <p className="text-xs md:text-sm text-muted-foreground text-center">
                     Inspeksi menunggu validasi manual
                   </p>
                   <a
@@ -586,9 +620,9 @@ export default function UserPage() {
                   </a>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 gap-2 text-muted-foreground">
-                  <CheckCircle2 className="h-8 w-8 text-green-500" />
-                  <p className="text-sm font-medium">
+                <div className="flex flex-col items-center justify-center py-4 md:py-6 gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-7 w-7 md:h-8 md:w-8 text-green-500" />
+                  <p className="text-xs md:text-sm font-medium text-center">
                     Semua inspeksi sudah diverifikasi
                   </p>
                 </div>

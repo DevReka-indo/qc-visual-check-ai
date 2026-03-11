@@ -77,7 +77,6 @@ export default function HomePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-    // Reset input so same file can be re-selected
     e.target.value = "";
   };
 
@@ -109,7 +108,7 @@ export default function HomePage() {
     : "border-sidebar-border";
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-4 md:gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
       {/* CSS Animasi Scanner */}
       <style
         dangerouslySetInnerHTML={{
@@ -127,35 +126,37 @@ export default function HomePage() {
         }}
       />
 
+      {/* ── Page Header ──────────────────────────────────────── */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight font-serif">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-serif">
           Workspace Deteksi
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
           Upload struktur bawah bogie kereta (Train Bogie Base) untuk dianalisis
           oleh AI.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* ── INPUT CARD ─────────────────────────────────────── */}
+      {/* ── Main Grid ────────────────────────────────────────── */}
+      <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+        {/* ── INPUT CARD ───────────────────────────────────── */}
         <Card className="flex flex-col border-sidebar-border shadow-sm overflow-hidden relative">
-          <CardHeader className="bg-muted/30 border-b">
-            <CardTitle className="flex items-center gap-2">
-              <ScanLine className="w-5 h-5 text-primary" />
+          <CardHeader className="bg-muted/30 border-b px-4 py-3 md:px-6 md:py-4">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <ScanLine className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               Vision Scanner
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs md:text-sm">
               Drag &amp; drop gambar atau klik untuk memilih file.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="flex-1 p-6">
+          <CardContent className="flex-1 p-3 md:p-6">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative w-full min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${
+              className={`relative w-full min-h-[260px] md:min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${
                 isDragging
                   ? "border-primary bg-primary/5 scale-[1.02]"
                   : selectedImage
@@ -168,7 +169,7 @@ export default function HomePage() {
                   <img
                     src={selectedImage}
                     alt="Uploaded bogie"
-                    className="max-h-[300px] object-contain rounded-md shadow-sm z-10"
+                    className="max-h-[240px] md:max-h-[300px] object-contain rounded-md shadow-sm z-10"
                   />
 
                   {/* Scanning effect */}
@@ -177,13 +178,13 @@ export default function HomePage() {
                       <div className="absolute inset-0 bg-primary/10 animate-pulse" />
                       {isUploading ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                          <div className="w-8 h-8 border-2 border-[#0d6efd] border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs text-[#0d6efd] font-medium bg-background/80 px-2 py-1 rounded">
+                          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs text-primary font-medium bg-background/80 px-2 py-1 rounded">
                             Uploading image...
                           </span>
                         </div>
                       ) : (
-                        <div className="absolute w-full h-1 bg-[#0d6efd] shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0" />
+                        <div className="absolute w-full h-1 bg-primary shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0" />
                       )}
                     </div>
                   )}
@@ -211,7 +212,7 @@ export default function HomePage() {
                   {/* Hover overlay to re-select image */}
                   {!isDetecting && (
                     <label className="absolute inset-0 cursor-pointer w-full h-full z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity rounded-md">
-                      <span className="bg-background text-foreground px-4 py-2 rounded-lg font-medium shadow-lg flex items-center gap-2">
+                      <span className="bg-background text-foreground px-4 py-2 rounded-lg font-medium shadow-lg flex items-center gap-2 text-sm">
                         <Upload className="w-4 h-4" /> Ganti Gambar
                       </span>
                       <input
@@ -233,17 +234,17 @@ export default function HomePage() {
                       onChange={handleImageUpload}
                     />
                   </label>
-                  <div className="p-4 bg-primary/10 rounded-full text-primary mb-4 pointer-events-none">
-                    <Upload className="w-10 h-10" />
+                  <div className="p-3 md:p-4 bg-primary/10 rounded-full text-primary mb-3 md:mb-4 pointer-events-none">
+                    <Upload className="w-8 h-8 md:w-10 md:h-10" />
                   </div>
-                  <div className="text-center pointer-events-none space-y-1">
-                    <p className="text-base font-semibold">
+                  <div className="text-center pointer-events-none space-y-1 px-4">
+                    <p className="text-sm md:text-base font-semibold">
                       Tarik gambar ke sini
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       atau klik untuk menelusuri folder
                     </p>
-                    <Badge variant="secondary" className="mt-4">
+                    <Badge variant="secondary" className="mt-3 md:mt-4 text-xs">
                       PNG, JPG, JPEG (Max 10MB)
                     </Badge>
                   </div>
@@ -252,80 +253,92 @@ export default function HomePage() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between border-t p-4 bg-muted/10 gap-4">
+          <CardFooter className="flex justify-between border-t p-3 md:p-4 bg-muted/10 gap-3">
             <Button
               variant="outline"
               onClick={reset}
               disabled={!selectedImage || isDetecting}
-              className="w-24"
+              className="w-20 md:w-24 text-sm"
             >
               Clear
             </Button>
             <Button
               onClick={handleDetection}
               disabled={!selectedImage || !selectedFile || isDetecting}
-              className="flex-1 bg-[#0d6efd] hover:bg-blue-700 shadow-md transition-all hover:scale-[1.01]"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all hover:scale-[1.01] text-sm"
             >
               {isDetecting ? (
                 <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {isUploading ? "Mengupload Gambar..." : "Menganalisis..."}
+                  <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span className="hidden sm:inline">
+                    {isUploading ? "Mengupload..." : "Menganalisis..."}
+                  </span>
+                  <span className="sm:hidden">
+                    {isUploading ? "Upload..." : "Analisis..."}
+                  </span>
                 </span>
               ) : (
-                "Jalankan Deteksi AI"
+                <>
+                  <span className="hidden sm:inline">Jalankan Deteksi AI</span>
+                  <span className="sm:hidden">Deteksi AI</span>
+                </>
               )}
             </Button>
           </CardFooter>
         </Card>
 
-        {/* ── KANAN: HASIL & AKTIVITAS ────────────────────────── */}
-        <div className="flex flex-col gap-6">
+        {/* ── KANAN: HASIL & AKTIVITAS ──────────────────────── */}
+        <div className="flex flex-col gap-4 md:gap-6">
           {/* Analysis Result Card */}
           <Card
             className={`flex flex-col transition-all duration-500 ${resultCardClass}`}
           >
-            <CardHeader>
-              <CardTitle>Hasil Inspeksi</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-4 py-3 md:px-6 md:py-4">
+              <CardTitle className="text-base md:text-lg">
+                Hasil Inspeksi
+              </CardTitle>
+              <CardDescription className="text-xs md:text-sm">
                 Output deteksi dari model Deep Learning.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1">
+            <CardContent className="flex-1 px-4 pb-4 md:px-6 md:pb-6">
               {isDetecting ? (
-                <div className="flex flex-col items-center justify-center h-[200px] space-y-4">
+                <div className="flex flex-col items-center justify-center h-[160px] md:h-[200px] space-y-4">
                   <div className="relative">
-                    <div className="w-16 h-16 border-4 border-muted rounded-full" />
-                    <div className="w-16 h-16 border-4 border-[#0d6efd] border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
+                    <div className="w-14 h-14 md:w-16 md:h-16 border-4 border-muted rounded-full" />
+                    <div className="w-14 h-14 md:w-16 md:h-16 border-4 border-primary border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
                   </div>
-                  <p className="text-sm font-medium animate-pulse text-[#0d6efd]">
+                  <p className="text-xs md:text-sm font-medium animate-pulse text-primary text-center">
                     {isUploading
                       ? "Mengupload gambar ke storage..."
                       : "Memproses bobot model AI..."}
                   </p>
                 </div>
               ) : result ? (
-                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-4 md:space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                   {/* Status row */}
                   <div
-                    className={`flex items-center justify-between p-5 border rounded-xl ${
+                    className={`flex items-center justify-between p-3 md:p-5 border rounded-xl ${
                       result.status === "okay"
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : "bg-destructive/10 border-destructive/30"
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 md:gap-4">
                       {result.status === "okay" ? (
-                        <div className="p-2 bg-emerald-500/20 rounded-full">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                        <div className="p-1.5 md:p-2 bg-emerald-500/20 rounded-full">
+                          <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8 text-emerald-500" />
                         </div>
                       ) : (
-                        <div className="p-2 bg-destructive/20 rounded-full">
-                          <AlertCircle className="w-8 h-8 text-destructive" />
+                        <div className="p-1.5 md:p-2 bg-destructive/20 rounded-full">
+                          <AlertCircle className="w-6 h-6 md:w-8 md:h-8 text-destructive" />
                         </div>
                       )}
                       <div>
-                        <p className="font-bold text-lg">Status Akhir</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-bold text-sm md:text-base">
+                          Status Akhir
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                           Integritas Struktur Bogie
                         </p>
                       </div>
@@ -334,15 +347,13 @@ export default function HomePage() {
                       variant={
                         result.status === "okay" ? "outline" : "destructive"
                       }
-                      className={`text-base px-4 py-2 shadow-sm ${
+                      className={`text-xs md:text-base px-2 md:px-4 py-1 md:py-2 shadow-sm shrink-0 ${
                         result.status === "okay"
                           ? "bg-emerald-500 text-white border-transparent"
                           : "animate-pulse"
                       }`}
                     >
-                      {result.status === "okay"
-                        ? "PASSED (OK)"
-                        : "REJECT (NOK)"}
+                      {result.status === "okay" ? "PASSED" : "REJECT"}
                     </Badge>
                   </div>
 
@@ -352,29 +363,29 @@ export default function HomePage() {
                       variant="destructive"
                       className="bg-destructive/5 border-destructive/20 text-destructive"
                     >
-                      <ShieldAlert className="h-5 w-5" />
-                      <AlertTitle className="font-bold text-base ml-2">
+                      <ShieldAlert className="h-4 w-4 md:h-5 md:w-5" />
+                      <AlertTitle className="font-bold text-sm md:text-base ml-2">
                         Anomali Terdeteksi!
                       </AlertTitle>
-                      <AlertDescription className="mt-2 text-sm leading-relaxed ml-2">
+                      <AlertDescription className="mt-1 text-xs md:text-sm leading-relaxed ml-2">
                         Sistem mendeteksi{" "}
                         <span className="font-bold underline">
                           {result.reason}
                         </span>{" "}
-                        pada area yang ditandai merah (kiri). Harap segera
-                        lakukan peninjauan fisik.
+                        pada area yang ditandai merah. Harap segera lakukan
+                        peninjauan fisik.
                       </AlertDescription>
                     </Alert>
                   )}
 
                   {/* Confidence bar */}
-                  <div className="space-y-3 p-5 bg-muted/20 rounded-xl border border-muted-foreground/10">
+                  <div className="space-y-2 md:space-y-3 p-3 md:p-5 bg-muted/20 rounded-xl border border-muted-foreground/10">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-medium text-muted-foreground">
+                      <h4 className="text-xs md:text-sm font-medium text-muted-foreground">
                         Confidence Level (Akurasi)
                       </h4>
                       <p
-                        className={`text-lg font-bold ${
+                        className={`text-base md:text-lg font-bold ${
                           result.status === "okay"
                             ? "text-emerald-500"
                             : "text-destructive"
@@ -383,7 +394,7 @@ export default function HomePage() {
                         {confidence}%
                       </p>
                     </div>
-                    <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
+                    <div className="w-full h-2 md:h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
                       <div
                         className={`h-full transition-all duration-1000 ease-out ${
                           result.status === "okay"
@@ -396,9 +407,9 @@ export default function HomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50 space-y-4">
-                  <FileImage className="w-16 h-16 opacity-30" />
-                  <p className="text-sm font-medium">
+                <div className="flex flex-col items-center justify-center h-full min-h-[160px] md:min-h-[200px] text-muted-foreground/50 space-y-3 md:space-y-4">
+                  <FileImage className="w-12 h-12 md:w-16 md:h-16 opacity-30" />
+                  <p className="text-xs md:text-sm font-medium">
                     Menunggu input gambar...
                   </p>
                 </div>
@@ -408,16 +419,16 @@ export default function HomePage() {
 
           {/* Recent Activity Card */}
           <Card className="border-sidebar-border shadow-sm">
-            <CardHeader className="py-4 pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <CardHeader className="py-3 pb-2 px-4 md:px-6">
+              <CardTitle className="text-xs md:text-sm font-semibold flex items-center gap-2">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 Aktivitas Terakhir
               </CardTitle>
             </CardHeader>
-            <CardContent className="py-2 pb-4">
-              <div className="space-y-3">
+            <CardContent className="py-2 pb-3 md:pb-4 px-4 md:px-6">
+              <div className="space-y-2 md:space-y-3">
                 {recentDetections.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
+                  <p className="text-xs md:text-sm text-muted-foreground text-center py-3 md:py-4">
                     Belum ada aktivitas.
                   </p>
                 ) : (
@@ -426,19 +437,35 @@ export default function HomePage() {
                       key={i}
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 md:gap-3 min-w-0">
                         <div
-                          className={`w-2 h-2 rounded-full ${
+                          className={`w-2 h-2 rounded-full shrink-0 ${
                             item.status === "okay"
                               ? "bg-emerald-500"
                               : "bg-destructive"
                           }`}
                         />
-                        <span className="text-sm font-medium">{item.id}</span>
+                        <span className="text-xs md:text-sm font-medium truncate">
+                          {item.id}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {item.time}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge
+                          variant={
+                            item.status === "okay" ? "outline" : "destructive"
+                          }
+                          className={`text-[10px] px-1.5 py-0 hidden sm:inline-flex ${
+                            item.status === "okay"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-300"
+                              : ""
+                          }`}
+                        >
+                          {item.status === "okay" ? "OK" : "NOK"}
+                        </Badge>
+                        <span className="text-[10px] md:text-xs text-muted-foreground">
+                          {item.time}
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}

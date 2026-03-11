@@ -34,45 +34,44 @@ export default function StatisticsPage() {
   const { stats, distribution, monthlyChartData, isLoading, fetchAll } =
     useStatsStore();
 
-  // Fetch on mount — uses 60 s TTL cache so navigating back won't re-fetch
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10">
-      {/* Page Header */}
+    <div className="flex flex-col gap-4 md:gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
+      {/* ── Page Header ───────────────────────────────────────── */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight font-serif">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-serif">
           Statistic
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
           Key performance metrics and historical data analysis of train bogies.
         </p>
       </div>
 
       {/* ── Summary Cards ─────────────────────────────────────── */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
         {/* Total Inspeksi */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Inspeksi
             </CardTitle>
-            <div className="p-2 bg-blue-500/10 rounded-full">
-              <FileCheck className="h-4 w-4 text-blue-500" />
+            <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-full shrink-0">
+              <FileCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 md:px-6">
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-7 md:h-8 w-14 md:w-16" />
             ) : (
-              <div className="text-2xl font-bold">
+              <div className="text-xl md:text-2xl font-bold">
                 {stats?.total_inspections ?? 0}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
               Unit Terverifikasi
             </p>
           </CardContent>
@@ -80,23 +79,23 @@ export default function StatisticsPage() {
 
         {/* Akurasi Sistem */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Akurasi Sistem
             </CardTitle>
-            <div className="p-2 bg-green-500/10 rounded-full">
-              <TrendingUp className="h-4 w-4 text-green-500" />
+            <div className="p-1.5 md:p-2 bg-green-500/10 rounded-full shrink-0">
+              <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 md:px-6">
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-7 md:h-8 w-14 md:w-16" />
             ) : (
-              <div className="text-2xl font-bold">
+              <div className="text-xl md:text-2xl font-bold">
                 {stats?.accuracy_percentage ?? 0}%
               </div>
             )}
-            <p className="text-xs text-green-500 font-medium mt-1">
+            <p className="text-[10px] md:text-xs text-green-500 font-medium mt-1">
               Berdasarkan data bulan ini
             </p>
           </CardContent>
@@ -104,17 +103,17 @@ export default function StatisticsPage() {
 
         {/* Waktu Proses */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Waktu Proses
             </CardTitle>
-            <div className="p-2 bg-orange-500/10 rounded-full">
-              <Clock className="h-4 w-4 text-orange-500" />
+            <div className="p-1.5 md:p-2 bg-orange-500/10 rounded-full shrink-0">
+              <Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-500" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1.2s</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="px-4 pb-4 md:px-6">
+            <div className="text-xl md:text-2xl font-bold">1.2s</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
               Per Frame (Average)
             </p>
           </CardContent>
@@ -122,23 +121,23 @@ export default function StatisticsPage() {
 
         {/* Anomali Pending */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Anomali Pending
             </CardTitle>
-            <div className="p-2 bg-red-500/10 rounded-full">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
+            <div className="p-1.5 md:p-2 bg-red-500/10 rounded-full shrink-0">
+              <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 text-red-500" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 md:px-6">
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-7 md:h-8 w-14 md:w-16" />
             ) : (
-              <div className="text-2xl font-bold">
+              <div className="text-xl md:text-2xl font-bold">
                 {stats?.pending_tasks ?? 0}
               </div>
             )}
-            <p className="text-xs text-red-500 font-medium mt-1">
+            <p className="text-[10px] md:text-xs text-red-500 font-medium mt-1">
               Membutuhkan Validasi
             </p>
           </CardContent>
@@ -146,24 +145,31 @@ export default function StatisticsPage() {
       </div>
 
       {/* ── Charts Row ────────────────────────────────────────── */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
         {/* Bar Chart – Monthly Okay vs Not Okay */}
         <Card className="col-span-1 md:col-span-2">
-          <CardHeader>
-            <CardTitle>Historical Detections</CardTitle>
-            <CardDescription>
+          <CardHeader className="px-4 pt-4 pb-2 md:px-6">
+            <CardTitle className="text-base md:text-lg">
+              Historical Detections
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
               Monthly comparison of Okay vs Not Okay bogies (last 6 months)
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 pb-4 md:px-4 md:pb-6">
             {isLoading ? (
-              <Skeleton className="h-[350px] w-full" />
+              <Skeleton className="h-[280px] md:h-[350px] w-full" />
+            ) : monthlyChartData.length === 0 ? (
+              <div className="h-[280px] md:h-[350px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <FileCheck className="w-10 h-10 opacity-30" />
+                <p className="text-sm font-medium">Belum ada data deteksi.</p>
+              </div>
             ) : (
-              <div className="h-[350px] w-full">
+              <div className="h-[280px] md:h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={monthlyChartData}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -175,22 +181,30 @@ export default function StatisticsPage() {
                       className="text-xs text-muted-foreground"
                       tickLine={false}
                       axisLine={false}
+                      tick={{ fontSize: 11 }}
                     />
                     <YAxis
                       className="text-xs text-muted-foreground"
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
+                      tick={{ fontSize: 11 }}
+                      width={28}
                     />
                     <Tooltip
                       contentStyle={{
                         borderRadius: "8px",
                         border: "1px solid var(--border)",
                         backgroundColor: "var(--background)",
+                        fontSize: "12px",
                       }}
                       cursor={{ fill: "var(--muted)" }}
                     />
-                    <Legend iconType="circle" />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: "12px" }}
+                    />
                     <Bar
                       dataKey="okay"
                       name="Okay"
@@ -214,28 +228,35 @@ export default function StatisticsPage() {
 
         {/* Pie Chart – Defect Distribution */}
         <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Defect Distribution</CardTitle>
-            <CardDescription>Breakdown by anomaly type</CardDescription>
+          <CardHeader className="px-4 pt-4 pb-2 md:px-6">
+            <CardTitle className="text-base md:text-lg">
+              Defect Distribution
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm">
+              Breakdown by anomaly type
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 pb-4 md:px-4 md:pb-6">
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full" />
+              <Skeleton className="h-[260px] md:h-[300px] w-full" />
             ) : distribution.length === 0 ? (
-              <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                Belum ada data defect.
+              <div className="h-[260px] md:h-[300px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <AlertTriangle className="w-10 h-10 opacity-30" />
+                <p className="text-sm font-medium text-center">
+                  Belum ada data defect.
+                </p>
               </div>
             ) : (
-              <div className="h-[300px] w-full">
+              <div className="h-[260px] md:h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={distribution}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
+                      cy="45%"
+                      innerRadius={50}
+                      outerRadius={90}
+                      paddingAngle={4}
                       dataKey="value"
                     >
                       {distribution.map((_, index) => (
@@ -245,8 +266,19 @@ export default function StatisticsPage() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip />
-                    <Legend />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid var(--border)",
+                        backgroundColor: "var(--background)",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: "11px" }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -257,37 +289,46 @@ export default function StatisticsPage() {
 
       {/* ── Monthly Summary Table ──────────────────────────────── */}
       <Card>
-        <CardHeader>
-          <CardTitle>Ringkasan Bulanan</CardTitle>
-          <CardDescription>
+        <CardHeader className="px-4 pt-4 pb-2 md:px-6">
+          <CardTitle className="text-base md:text-lg">
+            Ringkasan Bulanan
+          </CardTitle>
+          <CardDescription className="text-xs md:text-sm">
             Detail inspeksi per bulan selama 6 bulan terakhir
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 md:px-6 md:pb-6">
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
+          ) : monthlyChartData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground border rounded-md bg-muted/20">
+              <FileCheck className="w-10 h-10 opacity-30" />
+              <p className="text-sm font-medium">
+                Belum ada data untuk ditampilkan.
+              </p>
+            </div>
           ) : (
-            <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-md border overflow-hidden overflow-x-auto">
+              <table className="w-full text-xs md:text-sm min-w-[400px]">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    <th className="text-left px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Bulan
                     </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Okay
                     </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Not Okay
                     </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Total
                     </th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Pass Rate
                     </th>
                   </tr>
@@ -297,27 +338,32 @@ export default function StatisticsPage() {
                     const total = row.okay + row.not_okay;
                     const passRate =
                       total > 0 ? ((row.okay / total) * 100).toFixed(1) : "–";
+                    const isGood = total > 0 && Number(passRate) >= 80;
                     return (
                       <tr
                         key={i}
                         className="hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-4 py-3 font-medium">{row.name}</td>
-                        <td className="px-4 py-3 text-right text-emerald-600 font-semibold">
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 font-medium">
+                          {row.name}
+                        </td>
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right text-emerald-600 font-semibold">
                           {row.okay}
                         </td>
-                        <td className="px-4 py-3 text-right text-destructive font-semibold">
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right text-destructive font-semibold">
                           {row.not_okay}
                         </td>
-                        <td className="px-4 py-3 text-right">{total}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
+                          {total}
+                        </td>
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
                           <span
-                            className={`font-medium ${
-                              total > 0 && Number(passRate) >= 80
-                                ? "text-emerald-600"
-                                : total > 0
-                                  ? "text-destructive"
-                                  : "text-muted-foreground"
+                            className={`font-semibold ${
+                              total === 0
+                                ? "text-muted-foreground"
+                                : isGood
+                                  ? "text-emerald-600"
+                                  : "text-destructive"
                             }`}
                           >
                             {passRate}
