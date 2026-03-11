@@ -1,172 +1,259 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
-import { Upload, FileImage, AlertCircle, CheckCircle2, ScanLine, Clock, ShieldAlert } from "lucide-react"
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Upload,
+  FileImage,
+  AlertCircle,
+  CheckCircle2,
+  ScanLine,
+  Clock,
+  ShieldAlert,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { getInspections, getUserProfile } from "@/app/actions/database"
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getInspections, getUserProfile } from "@/app/actions/database";
 
 export default function HomePage() {
-  const router = useRouter()
+  const router = useRouter();
 
   // --- STATE MANAGEMENT ---
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [isDetecting, setIsDetecting] = useState(false)
-  const [result, setResult] = useState<{ status: "okay" | "not_okay"; reason?: string } | null>(null)
-  const [confidence, setConfidence] = useState<number>(0)
-  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [result, setResult] = useState<{
+    status: "okay" | "not_okay";
+    reason?: string;
+  } | null>(null);
+  const [confidence, setConfidence] = useState<number>(0);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-  const [isDragging, setIsDragging] = useState(false)
-  const [defectBox, setDefectBox] = useState<{ top: number, left: number, width: number, height: number } | null>(null)
-  const [recentDetections, setRecentDetections] = useState<{ id: string, status: string, time: string }[]>([])
-  const [userDivision, setUserDivision] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false);
+  const [defectBox, setDefectBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [recentDetections, setRecentDetections] = useState<
+    { id: string; status: string; time: string }[]
+  >([]);
+  const [userDivision, setUserDivision] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- LOGIKA PROTEKSI LOGIN & FETCH DATA ---
   useEffect(() => {
-    // Note: Middleware handles redirection if there's no session.
-    // We just fetch the data here.
-    setIsAuthorized(true)
+    setIsAuthorized(true);
 
-    // Load divisions and user profile to get division_id
     const loadInitialData = async () => {
-      const { data: { user } } = await (await import('@/utils/supabase/client')).createClient().auth.getUser()
+      const {
+        data: { user },
+      } = await (await import("@/utils/supabase/client"))
+        .createClient()
+        .auth.getUser();
       if (user) {
-        const profile = await getUserProfile(user.id)
-        if (profile?.division_id) setUserDivision(profile.division_id)
+        const profile = await getUserProfile(user.id);
+        if (profile?.division_id) setUserDivision(profile.division_id);
       }
 
-      // Load recent detections from db
-      const data = await getInspections(3)
+      const { data } = await getInspections(3);
       if (data) {
-        setRecentDetections(data.map(i => ({
-          id: i.part_id,
-          status: i.ai_result_status === 'okay' ? "okay" : "not_okay",
-          time: new Date(i.inspection_date || new Date()).toLocaleDateString()
-        })))
+        setRecentDetections(
+          data.map((i) => ({
+            id: i.part_id,
+            status: i.ai_result_status === "okay" ? "okay" : "not_okay",
+            time: new Date(
+              i.inspection_date || new Date(),
+            ).toLocaleDateString(),
+          })),
+        );
       }
-    }
+    };
 
-    loadInitialData()
-  }, [])
+    loadInitialData();
+  }, []);
 
   // --- EFFECT UNTUK GENERATE ANGKA RANDOM ---
   useEffect(() => {
     if (isAuthorized && result) {
-      const randomVal = Number((Math.random() * 10 + 89).toFixed(1))
-      setConfidence(randomVal)
+      const randomVal = Number((Math.random() * 10 + 89).toFixed(1));
+      setConfidence(randomVal);
     }
-  }, [result, isAuthorized])
+  }, [result, isAuthorized]);
 
   // --- HANDLERS ---
   const processFile = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file)
-      setSelectedImage(imageUrl)
-      setResult(null)
-      setDefectBox(null)
+    if (file && file.type.startsWith("image/")) {
+      const imageUrl = URL.createObjectURL(file);
+      setSelectedImage(imageUrl);
+      setSelectedFile(file);
+      setResult(null);
+      setDefectBox(null);
     }
-  }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) processFile(file)
-  }
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
 
-  // Drag & Drop Handlers
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
+    e.preventDefault();
+    setIsDragging(true);
+  };
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
+    e.preventDefault();
+    setIsDragging(false);
+  };
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) processFile(file)
-  }
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  // --- UPLOAD IMAGE TO SUPABASE STORAGE ---
+  const uploadImageToStorage = async (
+    file: File,
+    partId: string,
+  ): Promise<string | null> => {
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const fileName = `inspections/${Date.now()}-${partId}.${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("inspection_images")
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        return null;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("inspection_images")
+        .getPublicUrl(uploadData.path);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error("Unexpected upload error:", err);
+      return null;
+    }
+  };
 
   const handleDetection = async () => {
-    if (!selectedImage) return
-    setIsDetecting(true)
-    setResult(null)
-    setDefectBox(null)
+    if (!selectedImage || !selectedFile) return;
+    setIsDetecting(true);
+    setIsUploading(true);
+    setResult(null);
+    setDefectBox(null);
+
+    const partId = `BG-${Math.floor(Math.random() * 9000) + 1000}`;
+
+    // 1. Upload gambar ke Supabase Storage
+    const uploadedImageUrl = await uploadImageToStorage(selectedFile, partId);
+    setIsUploading(false);
 
     // Simulasi Deep Learning Process
     setTimeout(async () => {
-      setIsDetecting(false)
-      const isOkay = Math.random() > 0.5
-      const partId = `BG-${Math.floor(Math.random() * 9000) + 1000}`
-      const simulatedConfidence = Number((Math.random() * 10 + 89).toFixed(1))
+      setIsDetecting(false);
+      const isOkay = Math.random() > 0.5;
+      const simulatedConfidence = Number((Math.random() * 10 + 89).toFixed(1));
 
       let finalResult: { status: "okay" | "not_okay"; reason?: string };
-      let anomalies: any[] = [];
+      let anomalies: {
+        defect_type: string;
+        location: string;
+        description: string;
+        confidence_score: number;
+        bounding_box?: Record<string, unknown>;
+      }[] = [];
 
       if (isOkay) {
-        finalResult = { status: "okay" }
+        finalResult = { status: "okay" };
       } else {
-        const defects = ["Terdeteksi Baret", "Terdeteksi Lengkung", "Terdeteksi Cat Meleber"]
-        const randomDefect = defects[Math.floor(Math.random() * defects.length)]
-        finalResult = { status: "not_okay", reason: randomDefect }
+        const defects = [
+          "Terdeteksi Baret",
+          "Terdeteksi Lengkung",
+          "Terdeteksi Cat Meleber",
+        ];
+        const randomDefect =
+          defects[Math.floor(Math.random() * defects.length)];
+        finalResult = { status: "not_okay", reason: randomDefect };
 
         const box = {
           top: Math.floor(Math.random() * 40) + 20,
           left: Math.floor(Math.random() * 40) + 20,
           width: Math.floor(Math.random() * 20) + 15,
           height: Math.floor(Math.random() * 20) + 15,
-        }
-        setDefectBox(box)
+        };
+        setDefectBox(box);
 
         anomalies.push({
           defect_type: randomDefect,
           location: "Visual Surface",
           description: `Simulated anomaly detected: ${randomDefect}`,
           confidence_score: simulatedConfidence,
-          bounding_box: box
-        })
+          bounding_box: box,
+        });
       }
 
-      setResult(finalResult)
+      setResult(finalResult);
 
-      // Save to Supabase
-      const { saveInspection } = await import('@/app/actions/database')
+      // 2. Save ke Supabase dengan URL gambar yang sudah di-upload
+      const { saveInspection } = await import("@/app/actions/database");
       await saveInspection({
         part_id: partId,
         division_id: userDivision,
-        image_url: selectedImage, // In real world, we would upload this to storage first
+        image_url: uploadedImageUrl, // pakai URL dari Storage, bukan blob
         ai_result_status: finalResult.status,
-        main_defect: finalResult.reason || 'None',
+        main_defect: finalResult.reason ?? "None",
         ai_confidence_score: simulatedConfidence,
-        anomalies: anomalies
-      })
+        anomalies,
+      });
 
-      // Update recent list
-      setRecentDetections(prev => [{ id: partId, status: finalResult.status, time: "Just now" }, ...prev].slice(0, 3))
-    }, 2500)
-  }
+      // 3. Update recent list
+      setRecentDetections((prev) =>
+        [
+          { id: partId, status: finalResult.status, time: "Just now" },
+          ...prev,
+        ].slice(0, 3),
+      );
+    }, 2500);
+  };
 
-  if (!isAuthorized) return null
+  if (!isAuthorized) return null;
 
-  // Warna dinamis untuk Card Hasil
   const resultCardClass = result
     ? result.status === "okay"
       ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
       : "border-destructive/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]"
-    : "border-sidebar-border"
+    : "border-sidebar-border";
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
-
-      {/* CSS Animasi Scanner (Disisipkan agar mudah tanpa config tailwind tambahan) */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      {/* CSS Animasi Scanner */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes scan {
           0% { top: 0%; opacity: 0; }
           10% { opacity: 1; }
@@ -176,12 +263,17 @@ export default function HomePage() {
         .animate-scan {
           animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
-      `}} />
+      `,
+        }}
+      />
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight font-serif">Workspace Deteksi</h1>
+        <h1 className="text-3xl font-bold tracking-tight font-serif">
+          Workspace Deteksi
+        </h1>
         <p className="text-muted-foreground mt-2">
-          Upload struktur bawah bogie kereta (Train Bogie Base) untuk dianalisis oleh AI.
+          Upload struktur bawah bogie kereta (Train Bogie Base) untuk dianalisis
+          oleh AI.
         </p>
       </div>
 
@@ -193,7 +285,9 @@ export default function HomePage() {
               <ScanLine className="w-5 h-5 text-primary" />
               Vision Scanner
             </CardTitle>
-            <CardDescription>Drag & drop gambar atau klik untuk memilih file.</CardDescription>
+            <CardDescription>
+              Drag & drop gambar atau klik untuk memilih file.
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="flex-1 p-6">
@@ -201,19 +295,36 @@ export default function HomePage() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative w-full min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${isDragging ? 'border-primary bg-primary/5 scale-[1.02]' :
-                selectedImage ? 'border-transparent bg-slate-900/5 dark:bg-slate-900/50' : 'border-border bg-muted/20 hover:bg-muted/40 hover:border-primary/50 cursor-pointer'
-                }`}
+              className={`relative w-full min-h-[350px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden ${
+                isDragging
+                  ? "border-primary bg-primary/5 scale-[1.02]"
+                  : selectedImage
+                    ? "border-transparent bg-slate-900/5 dark:bg-slate-900/50"
+                    : "border-border bg-muted/20 hover:bg-muted/40 hover:border-primary/50 cursor-pointer"
+              }`}
             >
               {selectedImage ? (
                 <div className="relative w-full h-full flex items-center justify-center p-2 group">
-                  <img src={selectedImage} alt="Uploaded bogie" className="max-h-[300px] object-contain rounded-md shadow-sm z-10" />
+                  <img
+                    src={selectedImage}
+                    alt="Uploaded bogie"
+                    className="max-h-[300px] object-contain rounded-md shadow-sm z-10"
+                  />
 
                   {/* Efek Scanning Laser */}
                   {isDetecting && (
                     <div className="absolute inset-0 z-20 overflow-hidden rounded-md pointer-events-none">
                       <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
-                      <div className="absolute w-full h-1 bg-[#0d6efd] shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0"></div>
+                      {isUploading ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                          <div className="w-8 h-8 border-2 border-[#0d6efd] border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-xs text-[#0d6efd] font-medium bg-background/80 px-2 py-1 rounded">
+                            Uploading image...
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="absolute w-full h-1 bg-[#0d6efd] shadow-[0_0_8px_2px_rgba(13,110,253,0.8)] animate-scan left-0"></div>
+                      )}
                     </div>
                   )}
 
@@ -228,7 +339,10 @@ export default function HomePage() {
                         height: `${defectBox.height}%`,
                       }}
                     >
-                      <Badge variant="destructive" className="absolute -top-3 -left-1 text-[10px] px-1 py-0 shadow-md">
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-3 -left-1 text-[10px] px-1 py-0 shadow-md"
+                      >
                         {result.reason}
                       </Badge>
                     </div>
@@ -240,22 +354,38 @@ export default function HomePage() {
                       <span className="bg-background text-foreground px-4 py-2 rounded-lg font-medium shadow-lg flex items-center gap-2">
                         <Upload className="w-4 h-4" /> Ganti Gambar
                       </span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
                     </label>
                   )}
                 </div>
               ) : (
                 <>
                   <label className="absolute inset-0 cursor-pointer z-10 w-full h-full">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
                   </label>
                   <div className="p-4 bg-primary/10 rounded-full text-primary mb-4 pointer-events-none">
                     <Upload className="w-10 h-10" />
                   </div>
                   <div className="text-center pointer-events-none space-y-1">
-                    <p className="text-base font-semibold">Tarik gambar ke sini</p>
-                    <p className="text-sm text-muted-foreground">atau klik untuk menelusuri folder</p>
-                    <Badge variant="secondary" className="mt-4">PNG, JPG, JPEG (Max 10MB)</Badge>
+                    <p className="text-base font-semibold">
+                      Tarik gambar ke sini
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      atau klik untuk menelusuri folder
+                    </p>
+                    <Badge variant="secondary" className="mt-4">
+                      PNG, JPG, JPEG (Max 10MB)
+                    </Badge>
                   </div>
                 </>
               )}
@@ -263,28 +393,47 @@ export default function HomePage() {
           </CardContent>
 
           <CardFooter className="flex justify-between border-t p-4 bg-muted/10 gap-4">
-            <Button variant="outline" onClick={() => { setSelectedImage(null); setResult(null); setDefectBox(null); }} disabled={!selectedImage || isDetecting} className="w-24">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedImage(null);
+                setSelectedFile(null);
+                setResult(null);
+                setDefectBox(null);
+              }}
+              disabled={!selectedImage || isDetecting}
+              className="w-24"
+            >
               Clear
             </Button>
-            <Button onClick={handleDetection} disabled={!selectedImage || isDetecting} className="flex-1 bg-[#0d6efd] hover:bg-blue-700 shadow-md transition-all hover:scale-[1.01]">
+            <Button
+              onClick={handleDetection}
+              disabled={!selectedImage || !selectedFile || isDetecting}
+              className="flex-1 bg-[#0d6efd] hover:bg-blue-700 shadow-md transition-all hover:scale-[1.01]"
+            >
               {isDetecting ? (
                 <span className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Menganalisis...
+                  {isUploading ? "Mengupload Gambar..." : "Menganalisis..."}
                 </span>
-              ) : "Jalankan Deteksi AI"}
+              ) : (
+                "Jalankan Deteksi AI"
+              )}
             </Button>
           </CardFooter>
         </Card>
 
         {/* KOLOM KANAN: HASIL & AKTIVITAS */}
         <div className="flex flex-col gap-6">
-
           {/* ANALYSIS RESULT CARD */}
-          <Card className={`flex flex-col transition-all duration-500 ${resultCardClass}`}>
+          <Card
+            className={`flex flex-col transition-all duration-500 ${resultCardClass}`}
+          >
             <CardHeader>
               <CardTitle>Hasil Inspeksi</CardTitle>
-              <CardDescription>Output deteksi dari model Deep Learning.</CardDescription>
+              <CardDescription>
+                Output deteksi dari model Deep Learning.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               {isDetecting ? (
@@ -293,11 +442,17 @@ export default function HomePage() {
                     <div className="w-16 h-16 border-4 border-muted rounded-full"></div>
                     <div className="w-16 h-16 border-4 border-[#0d6efd] border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
                   </div>
-                  <p className="text-sm font-medium animate-pulse text-[#0d6efd]">Memproses bobot model AI...</p>
+                  <p className="text-sm font-medium animate-pulse text-[#0d6efd]">
+                    {isUploading
+                      ? "Mengupload gambar ke storage..."
+                      : "Memproses bobot model AI..."}
+                  </p>
                 </div>
               ) : result ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                  <div className={`flex items-center justify-between p-5 border rounded-xl ${result.status === "okay" ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-destructive/10 border-destructive/30'}`}>
+                  <div
+                    className={`flex items-center justify-between p-5 border rounded-xl ${result.status === "okay" ? "bg-emerald-500/10 border-emerald-500/30" : "bg-destructive/10 border-destructive/30"}`}
+                  >
                     <div className="flex items-center gap-4">
                       {result.status === "okay" ? (
                         <div className="p-2 bg-emerald-500/20 rounded-full">
@@ -310,28 +465,51 @@ export default function HomePage() {
                       )}
                       <div>
                         <p className="font-bold text-lg">Status Akhir</p>
-                        <p className="text-sm text-muted-foreground">Integritas Struktur Bogie</p>
+                        <p className="text-sm text-muted-foreground">
+                          Integritas Struktur Bogie
+                        </p>
                       </div>
                     </div>
-                    <Badge variant={result.status === "okay" ? "outline" : "destructive"} className={`text-base px-4 py-2 shadow-sm ${result.status === "okay" ? "bg-emerald-500 text-white border-transparent" : "animate-pulse"}`}>
-                      {result.status === "okay" ? "PASSED (OK)" : "REJECT (NOK)"}
+                    <Badge
+                      variant={
+                        result.status === "okay" ? "outline" : "destructive"
+                      }
+                      className={`text-base px-4 py-2 shadow-sm ${result.status === "okay" ? "bg-emerald-500 text-white border-transparent" : "animate-pulse"}`}
+                    >
+                      {result.status === "okay"
+                        ? "PASSED (OK)"
+                        : "REJECT (NOK)"}
                     </Badge>
                   </div>
 
                   {result.status === "not_okay" && (
-                    <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 text-destructive">
+                    <Alert
+                      variant="destructive"
+                      className="bg-destructive/5 border-destructive/20 text-destructive"
+                    >
                       <ShieldAlert className="h-5 w-5" />
-                      <AlertTitle className="font-bold text-base ml-2">Anomali Terdeteksi!</AlertTitle>
+                      <AlertTitle className="font-bold text-base ml-2">
+                        Anomali Terdeteksi!
+                      </AlertTitle>
                       <AlertDescription className="mt-2 text-sm leading-relaxed ml-2">
-                        Sistem mendeteksi <span className="font-bold underline">{result.reason}</span> pada area yang ditandai merah (kiri). Harap segera lakukan peninjauan fisik.
+                        Sistem mendeteksi{" "}
+                        <span className="font-bold underline">
+                          {result.reason}
+                        </span>{" "}
+                        pada area yang ditandai merah (kiri). Harap segera
+                        lakukan peninjauan fisik.
                       </AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-3 p-5 bg-muted/20 rounded-xl border border-muted-foreground/10">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-medium text-muted-foreground">Confidence Level (Akurasi)</h4>
-                      <p className={`text-lg font-bold ${result.status === "okay" ? "text-emerald-500" : "text-destructive"}`}>
+                      <h4 className="text-sm font-medium text-muted-foreground">
+                        Confidence Level (Akurasi)
+                      </h4>
+                      <p
+                        className={`text-lg font-bold ${result.status === "okay" ? "text-emerald-500" : "text-destructive"}`}
+                      >
                         {confidence}%
                       </p>
                     </div>
@@ -346,7 +524,9 @@ export default function HomePage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50 space-y-4">
                   <FileImage className="w-16 h-16 opacity-30" />
-                  <p className="text-sm font-medium">Menunggu input gambar...</p>
+                  <p className="text-sm font-medium">
+                    Menunggu input gambar...
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -362,21 +542,33 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="py-2 pb-4">
               <div className="space-y-3">
-                {recentDetections.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${item.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`}></div>
-                      <span className="text-sm font-medium">{item.id}</span>
+                {recentDetections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Belum ada aktivitas.
+                  </p>
+                ) : (
+                  recentDetections.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full ${item.status === "okay" ? "bg-emerald-500" : "bg-destructive"}`}
+                        ></div>
+                        <span className="text-sm font-medium">{item.id}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {item.time}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{item.time}</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
-  )
+  );
 }
