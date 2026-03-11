@@ -176,7 +176,12 @@ export async function getUserProfile(userId: string) {
 
 export async function updateUserProfile(
   userId: string,
-  updates: { full_name?: string; avatar_url?: string },
+  updates: {
+    full_name?: string;
+    avatar_url?: string;
+    division_id?: string | null;
+    employee_id?: string;
+  },
 ) {
   const supabase = await createClient();
 

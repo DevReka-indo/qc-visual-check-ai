@@ -25,12 +25,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 
 import { useAuthStore } from "@/store/use-auth-store";
 import { useStatsStore } from "@/store/use-stats-store";
-import { updateUserProfile } from "@/app/actions/database";
+import {
+  updateUserProfile,
+  getDivisions,
+} from "@/app/actions/database";
 import { updatePassword } from "@/app/actions/auth";
+
+type Division = {
+  id: string;
+  name: string;
+};
 
 // ─── Types ───────────────────────────────────────────────────
 type Feedback = { type: "success" | "error"; message: string } | null;
@@ -50,6 +65,10 @@ export default function UserPage() {
 
   // ── Profile form state ──────────────────────────────────────
   const [fullName, setFullName] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [divisionId, setDivisionId] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
 
@@ -62,10 +81,22 @@ export default function UserPage() {
 
   // ── Seed form when profile loads ────────────────────────────
   useEffect(() => {
-    if (profile?.full_name) {
-      setFullName(profile.full_name);
+    if (profile) {
+      setFullName(profile.full_name ?? "");
+      setEmployeeId(profile.employee_id ?? "");
+      setDivisionId(profile.division_id);
+      setAvatarUrl(profile.avatar_url ?? "");
     }
-  }, [profile?.full_name]);
+  }, [profile]);
+
+  // ── Fetch divisions ──────────────────────────────────────────
+  useEffect(() => {
+    const fetch = async () => {
+      const data = await getDivisions();
+      setDivisions(data as Division[]);
+    };
+    fetch();
+  }, []);
 
   // ── Fetch stats on mount (uses TTL cache, won't double-fetch) ──
   useEffect(() => {
@@ -96,12 +127,27 @@ export default function UserPage() {
     setIsSavingProfile(true);
     setProfileFeedback(null);
 
-    const result = await updateUserProfile(profile.id, { full_name: fullName });
+    const result = await updateUserProfile(profile.id, {
+      full_name: fullName,
+      employee_id: employeeId,
+      division_id: divisionId,
+      avatar_url: avatarUrl,
+    });
 
     if (result.error) {
       setProfileFeedback({ type: "error", message: result.error });
     } else {
-      updateProfile({ full_name: fullName });
+      // Find the selected division object to update the store with full details
+      const selectedDivision = divisions.find((d) => d.id === divisionId);
+      
+      updateProfile({
+        full_name: fullName,
+        employee_id: employeeId,
+        division_id: divisionId,
+        avatar_url: avatarUrl,
+        divisions: selectedDivision ? { ...selectedDivision, description: null, color_code: null, created_at: null } : null,
+      });
+      
       setProfileFeedback({
         type: "success",
         message: "Profil berhasil disimpan!",
@@ -378,19 +424,42 @@ export default function UserPage() {
 
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Divisi Kerja</label>
-                    <Input
-                      value={profile?.divisions?.name ?? "—"}
-                      disabled
-                      title="Divisi diatur oleh administrator."
-                    />
+                    <Select
+                      value={divisionId ?? "none"}
+                      onValueChange={(val) => setDivisionId(val === "none" ? null : val)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Divisi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Tanpa Divisi</SelectItem>
+                        {divisions.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">ID Karyawan</label>
                     <Input
-                      value={profile?.employee_id ?? "—"}
-                      disabled
-                      title="ID Karyawan diatur oleh administrator."
+                      value={employeeId}
+                      onChange={(e) => setEmployeeId(e.target.value)}
+                      placeholder="Masukkan ID Karyawan"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Avatar URL</label>
+                    <Input
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                      disabled={loading}
                     />
                   </div>
 

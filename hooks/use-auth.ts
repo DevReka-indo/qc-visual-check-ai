@@ -22,6 +22,14 @@ export function useAuth() {
 
       if (data && !error) {
         setProfile({ ...data, email } as UserProfileWithDivision);
+        
+        // If logged in user has offline status in DB, update it to online
+        if (data.status === "offline") {
+          await supabase
+            .from("users")
+            .update({ status: "online" })
+            .eq("id", userId);
+        }
       } else {
         clearAuth();
       }

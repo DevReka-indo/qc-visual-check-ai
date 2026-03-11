@@ -23,7 +23,10 @@ export async function signIn(formData: FormData) {
   if (data.user) {
     await supabase
       .from("users")
-      .update({ last_login: new Date().toISOString() })
+      .update({ 
+        last_login: new Date().toISOString(),
+        status: "online"
+      })
       .eq("id", data.user.id);
   }
 
@@ -66,6 +69,7 @@ export async function signUp(formData: FormData) {
         email: email,
         role: "operator",
         status: "online",
+        last_login: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", data.user.id);
@@ -80,6 +84,7 @@ export async function signUp(formData: FormData) {
         email: email,
         role: "operator",
         status: "online",
+        last_login: new Date().toISOString(),
       });
     }
   }
