@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { Database } from "@/types/database.types";
+import { Database, Json } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
 type InspectionRow = Database["public"]["Tables"]["inspections"]["Row"];
@@ -251,7 +251,7 @@ export async function saveInspection(payload: {
       location: a.location,
       description: a.description,
       confidence_score: a.confidence_score,
-      bounding_box: a.bounding_box ?? null,
+      bounding_box: (a.bounding_box ?? null) as Json | null,
     }));
 
     const { error: anomError } = await supabase
