@@ -118,9 +118,10 @@ function simulateAI(): {
   }
 
   const defects = [
-    "Terdeteksi Baret",
-    "Terdeteksi Lengkung",
-    "Terdeteksi Cat Meleber",
+    "Baret",
+    "Besi lengkung/bengkok",
+    "Cat meleber/dlewer",
+    "Cat mengelupas",
   ];
   const randomDefect = defects[Math.floor(Math.random() * defects.length)];
 

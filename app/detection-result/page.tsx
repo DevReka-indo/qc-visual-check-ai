@@ -15,13 +15,14 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 import {
@@ -68,7 +69,11 @@ import { useStatsStore } from "@/store/use-stats-store";
 // ─── Types ────────────────────────────────────────────────────
 type ChartRow = {
   month: string;
-  [divisionName: string]: string | number;
+  okay: number;
+  cat_mengelupas: number;
+  cat_meleber: number;
+  besi_lengkung: number;
+  baret: number;
 };
 
 type ValidationAction = "Resolved" | "Reworked" | "Scrapped";
@@ -77,34 +82,51 @@ type ValidationAction = "Resolved" | "Reworked" | "Scrapped";
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80";
 
-const DIVISION_COLORS: Record<string, string> = {
-  "Final Mechanic": "#94a3b8",
-  "Final Electric": "#ef4444",
-  Incoming: "#1d4ed8",
+const COLORS = [
+  "#10b981", // Okay (Green)
+  "#f97316", // Cat mengelupas (Orange)
+  "#fbbf24", // Cat meleber (Amber)
+  "#8b5cf6", // Besi lengkung (Purple)
+  "#ec4899", // Baret (Pink)
+];
+
+const DEFECT_LABELS: Record<string, string> = {
+  okay: "Okay",
+  cat_mengelupas: "Cat Mengelupas",
+  cat_meleber: "Cat Meleber",
+  besi_lengkung: "Besi Lengkung",
+  baret: "Baret",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────
-function getDivisionColor(name: string, idx: number): string {
-  if (DIVISION_COLORS[name]) return DIVISION_COLORS[name];
-  const fallbacks = ["#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
-  return fallbacks[idx % fallbacks.length];
-}
 
-function buildChartData(
+function buildDefectChartData(
   rows: MonthlyDivisionStatRow[],
-  divisionNames: string[],
+  selectedDivisionName: string | null,
 ): ChartRow[] {
   const map = new Map<string, ChartRow>();
 
   rows.forEach((r) => {
+    // If a division is selected, only include matches
+    if (selectedDivisionName && r.division_name !== selectedDivisionName) return;
+
     const key = `${r.month_label} ${r.year_num}`;
     if (!map.has(key)) {
-      const entry: ChartRow = { month: r.month_label };
-      divisionNames.forEach((d) => (entry[d] = 0));
-      map.set(key, entry);
+      map.set(key, {
+        month: r.month_label,
+        okay: 0,
+        cat_mengelupas: 0,
+        cat_meleber: 0,
+        besi_lengkung: 0,
+        baret: 0,
+      });
     }
+
     const entry = map.get(key)!;
-    entry[r.division_name] = Number(r.total_count);
+    entry.okay += Number(r.okay_count);
+    entry.cat_mengelupas += Number(r.cat_mengelupas);
+    entry.cat_meleber += Number(r.cat_meleber);
+    entry.besi_lengkung += Number(r.besi_lengkung);
+    entry.baret += Number(r.baret);
   });
 
   return Array.from(map.values());
@@ -160,12 +182,12 @@ export default function DetectionResultPage() {
   const [isFirstRender, setIsFirstRender] = useState(true);
 
   // Derived values
-  const divisions = rawDivisions.map((d) => ({
+  const divisions = React.useMemo(() => rawDivisions.map((d) => ({
     id: d.id,
     name: d.name,
     desc: d.description ?? "",
     color: d.color_code ?? "#64748b",
-  }));
+  })), [rawDivisions]);
 
   const loading = inspLoading || divsLoading;
   const chartLoading = statsLoading;
@@ -182,12 +204,13 @@ export default function DetectionResultPage() {
   // ── Build chart when monthlyDivisionStats changes ─────────
   useEffect(() => {
     if (monthlyDivisionStats.length === 0) return;
-    const names = Array.from(
-      new Set(monthlyDivisionStats.map((r) => r.division_name)),
-    );
-    setDivisionNames(names);
-    setChartData(buildChartData(monthlyDivisionStats, names));
-  }, [monthlyDivisionStats]);
+    
+    const selectedDivName = selectedDivision 
+      ? divisions.find(d => d.id === selectedDivision)?.name || null
+      : null;
+
+    setChartData(buildDefectChartData(monthlyDivisionStats, selectedDivName));
+  }, [monthlyDivisionStats, selectedDivision, divisions]);
 
   // ── Re-fetch when date filter changes (skip first render) ──
   useEffect(() => {
@@ -362,18 +385,6 @@ export default function DetectionResultPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 md:p-4 pt-0">
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-3 md:mb-4 px-2">
-              {divisionNames.map((name, idx) => (
-                <div key={name} className="flex items-center gap-1.5">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: getDivisionColor(name, idx) }}
-                  />
-                  <span className="text-xs md:text-sm font-medium">{name}</span>
-                </div>
-              ))}
-            </div>
 
             {chartLoading ? (
               <div className="h-[260px] flex items-center justify-center text-muted-foreground gap-2">
@@ -387,7 +398,7 @@ export default function DetectionResultPage() {
             ) : (
               <div className="h-[240px] md:h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
+                  <BarChart
                     data={chartData}
                     margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
                   >
@@ -417,19 +428,46 @@ export default function DetectionResultPage() {
                         boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                         fontSize: "12px",
                       }}
+                      formatter={(value, name) => [value, DEFECT_LABELS[name as string] || name]}
                     />
-                    {divisionNames.map((name, idx) => (
-                      <Line
-                        key={name}
-                        type="monotone"
-                        dataKey={name}
-                        stroke={getDivisionColor(name, idx)}
-                        strokeWidth={3}
-                        dot={{ r: 4, strokeWidth: 2 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    ))}
-                  </LineChart>
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
+                      formatter={(value) => DEFECT_LABELS[value as string] || value}
+                    />
+                    <Bar
+                      dataKey="okay"
+                      stackId="a"
+                      fill={COLORS[0]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="cat_mengelupas"
+                      stackId="a"
+                      fill={COLORS[1]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="cat_meleber"
+                      stackId="a"
+                      fill={COLORS[2]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="besi_lengkung"
+                      stackId="a"
+                      fill={COLORS[3]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="baret"
+                      stackId="a"
+                      fill={COLORS[4]}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
@@ -445,7 +483,7 @@ export default function DetectionResultPage() {
                 className="h-16 md:h-20 rounded-xl bg-muted animate-pulse"
               />
             ))
-          ) : divisions.length === 0 ? (
+          ) : divisions.length === 0 && inspections.filter((i) => !i.division_id).length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No divisions found.
             </p>
@@ -633,9 +671,11 @@ export default function DetectionResultPage() {
             </div>
           ) : (
             detectedImages
-              .filter(
-                (d) => !selectedDivision || d.divisionId === selectedDivision,
-              )
+              .filter((d) => {
+                if (!selectedDivision) return true;
+                if (selectedDivision === "unknown") return !d.divisionId;
+                return d.divisionId === selectedDivision;
+              })
               .map((detection) => (
                 <Card
                   key={detection.id}

@@ -23,6 +23,10 @@ export type MonthlyChartRow = {
   name: string; // e.g. "Jan"
   okay: number;
   not_okay: number;
+  cat_mengelupas: number;
+  cat_meleber: number;
+  besi_lengkung: number;
+  baret: number;
 };
 
 interface StatsState {
@@ -54,6 +58,10 @@ function toChartData(rows: MonthlyStatRow[]): MonthlyChartRow[] {
         name: d.toLocaleString("en-US", { month: "short" }),
         okay: 0,
         not_okay: 0,
+        cat_mengelupas: 0,
+        cat_meleber: 0,
+        besi_lengkung: 0,
+        baret: 0,
       };
     });
   }
@@ -62,6 +70,10 @@ function toChartData(rows: MonthlyStatRow[]): MonthlyChartRow[] {
     name: r.month_label,
     okay: Number(r.okay_count),
     not_okay: Number(r.not_okay_count),
+    cat_mengelupas: Number(r.cat_mengelupas),
+    cat_meleber: Number(r.cat_meleber),
+    besi_lengkung: Number(r.besi_lengkung),
+    baret: Number(r.baret),
   }));
 }
 

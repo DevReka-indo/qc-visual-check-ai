@@ -27,7 +27,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { useStatsStore } from "@/store/use-stats-store";
 
-const COLORS = ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#8b5cf6"];
+const COLORS = [
+  "#10b981", // Okay (Green)
+  "#f97316", // Cat mengelupas (Orange)
+  "#fbbf24", // Cat meleber (Amber)
+  "#8b5cf6", // Besi lengkung (Purple)
+  "#ec4899", // Baret (Pink)
+];
+
+const DEFECT_LABELS: Record<string, string> = {
+  okay: "Okay",
+  cat_mengelupas: "Cat Mengelupas",
+  cat_meleber: "Cat Meleber",
+  besi_lengkung: "Besi Lengkung",
+  baret: "Baret",
+};
 
 export default function StatisticsPage() {
   // ── Store ──────────────────────────────────────────────────────
@@ -146,14 +160,14 @@ export default function StatisticsPage() {
 
       {/* ── Charts Row ────────────────────────────────────────── */}
       <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
-        {/* Bar Chart – Monthly Okay vs Not Okay */}
+        {/* Bar Chart – Monthly Breakdown */}
         <Card className="col-span-1 md:col-span-2">
           <CardHeader className="px-4 pt-4 pb-2 md:px-6">
             <CardTitle className="text-base md:text-lg">
               Historical Detections
             </CardTitle>
             <CardDescription className="text-xs md:text-sm">
-              Monthly comparison of Okay vs Not Okay bogies (last 6 months)
+              Monthly breakdown of Okay vs Defects (last 6 months)
             </CardDescription>
           </CardHeader>
           <CardContent className="px-2 pb-4 md:px-4 md:pb-6">
@@ -199,23 +213,43 @@ export default function StatisticsPage() {
                         fontSize: "12px",
                       }}
                       cursor={{ fill: "var(--muted)" }}
+                      formatter={(value, name) => [value, DEFECT_LABELS[name as string] || name]}
                     />
                     <Legend
                       iconType="circle"
                       iconSize={8}
-                      wrapperStyle={{ fontSize: "12px" }}
+                      wrapperStyle={{ fontSize: "11px" }}
+                      formatter={(value) => DEFECT_LABELS[value as string] || value}
                     />
                     <Bar
                       dataKey="okay"
-                      name="Okay"
-                      fill="#10b981"
-                      radius={[4, 4, 0, 0]}
+                      stackId="a"
+                      fill={COLORS[0]}
+                      radius={[0, 0, 0, 0]}
                       maxBarSize={40}
                     />
                     <Bar
-                      dataKey="not_okay"
-                      name="Not Okay"
-                      fill="#ef4444"
+                      dataKey="cat_mengelupas"
+                      stackId="a"
+                      fill={COLORS[1]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="cat_meleber"
+                      stackId="a"
+                      fill={COLORS[2]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="besi_lengkung"
+                      stackId="a"
+                      fill={COLORS[3]}
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="baret"
+                      stackId="a"
+                      fill={COLORS[4]}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={40}
                     />
@@ -262,7 +296,7 @@ export default function StatisticsPage() {
                       {distribution.map((_, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
+                          fill={COLORS[(index + 1) % COLORS.length]}
                         />
                       ))}
                     </Pie>

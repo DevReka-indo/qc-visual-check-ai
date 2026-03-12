@@ -25,6 +25,10 @@ export type MonthlyStatRow = {
   month_num: number;
   okay_count: number;
   not_okay_count: number;
+  cat_mengelupas: number;
+  cat_meleber: number;
+  besi_lengkung: number;
+  baret: number;
 };
 
 export type MonthlyDivisionStatRow = {
@@ -33,6 +37,11 @@ export type MonthlyDivisionStatRow = {
   month_num: number;
   division_name: string;
   total_count: number;
+  okay_count: number;
+  cat_mengelupas: number;
+  cat_meleber: number;
+  besi_lengkung: number;
+  baret: number;
 };
 
 // ─────────────────────────────────────────────
@@ -270,8 +279,6 @@ export async function saveInspection(payload: {
 
   revalidatePath("/");
   revalidatePath("/detection-result");
-  revalidatePath("/database");
-
   return { data: inspection };
 }
 
