@@ -136,22 +136,73 @@ async function callAIModel(file: File): Promise<{
       return { finalResult: { status: "okay" }, defectBox: null, anomalies: [], confidence };
     }
 
-    // Default box for visualization since simple API may not provide bbox
-    const box: BoundingBox = { top: 30, left: 30, width: 20, height: 20 };
+    // Parse main box if available [x1, y1, x2, y2]
+    // The previous math expects absolute pixels or percentages? We handle percentages as before (top, left, width, height)
+    // Assuming backend returns absolute pixel coordinates [xmin, ymin, xmax, ymax]
+    // Or if backend returns percentages, we might need a different calculation.
+    // Let's assume the backend box is [xmin, ymin, xmax, ymax].
+    // Since we don't know the image size here easily, we'll map the box directly if it's percentage or absolute
+    // Wait, the previous dummy box was: { top: 30, left: 30, width: 20, height: 20 }
+    // Let's map [x1, y1, x2, y2] -> { left: x1, top: y1, width: x2 - x1, height: y2 - y1 }
+    // If they are pixels, they will be absolute pixels. If they are percentages, they will be percentages.
+    
+    let box: BoundingBox | null = null;
+    if (json.data?.box && Array.isArray(json.data.box) && json.data.box.length === 4) {
+      const [x1, y1, x2, y2] = json.data.box;
+      box = {
+        left: x1,
+        top: y1,
+        width: x2 - x1,
+        height: y2 - y1,
+      };
+    } else {
+      // Default
+      box = { top: 30, left: 30, width: 20, height: 20 };
+    }
+
+    // Parse all anomalies
+    const anomalies: AnomalyPayload[] = [];
+    if (json.data?.all_detections && Array.isArray(json.data.all_detections)) {
+      json.data.all_detections.forEach((det: any, idx: number) => {
+        let detBox: BoundingBox | null = null;
+        if (det.box && Array.isArray(det.box) && det.box.length === 4) {
+          const [dx1, dy1, dx2, dy2] = det.box;
+          detBox = {
+            left: dx1,
+            top: dy1,
+            width: dx2 - dx1,
+            height: dy2 - dy1,
+          };
+        }
+
+        const detConfidence = parseFloat(((det.confidence || 0) * 100).toFixed(1));
+
+        anomalies.push({
+          defect_type: det.label,
+          location: `Detection #${idx + 1}`,
+          description: `AI detected anomaly: ${det.label}`,
+          confidence_score: detConfidence,
+          bounding_box: detBox ? (detBox as Record<string, unknown>) : undefined,
+        });
+      });
+    }
+
+    // If no all_detections, fallback to the main label
+    if (anomalies.length === 0) {
+      anomalies.push({
+        defect_type: label,
+        location: "Visual Surface",
+        description: `AI detected anomaly: ${label}`,
+        confidence_score: confidence,
+        bounding_box: box as Record<string, unknown>,
+      });
+    }
 
     return {
       finalResult: { status: "not_okay", reason: label },
       defectBox: box,
       confidence,
-      anomalies: [
-        {
-          defect_type: label,
-          location: "Visual Surface",
-          description: `AI detected anomaly: ${label}`,
-          confidence_score: confidence,
-          bounding_box: box as Record<string, unknown>,
-        },
-      ],
+      anomalies,
     };
   } catch (error) {
     console.error("Failed to call AI model:", error);

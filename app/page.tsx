@@ -48,9 +48,10 @@ export default function HomePage() {
   const profile = useAuthStore((s) => s.profile);
   const { inspections, fetchInspections } = useInspectionStore();
 
-  // ── Local UI-only state (drag & drop) ─────────────────────────
+  // ── Local UI-only state (drag & drop & image dims) ────────────
   const [isDragging, setIsDragging] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [imageDims, setImageDims] = React.useState<{ width: number; height: number } | null>(null);
 
   // ── On mount: load 3 recent detections ───────────────────────
   useEffect(() => {
@@ -90,7 +91,10 @@ export default function HomePage() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      setImageDims(null);
+      processFile(file);
+    }
     e.target.value = "";
   };
 
@@ -106,7 +110,10 @@ export default function HomePage() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      setImageDims(null);
+      processFile(file);
+    }
   };
 
   // ── Detection ─────────────────────────────────────────────────
@@ -192,6 +199,13 @@ export default function HomePage() {
                     src={selectedImage}
                     alt="Uploaded bogie"
                     className="max-h-[240px] md:max-h-[300px] object-contain rounded-md shadow-sm z-10"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      setImageDims({
+                        width: img.naturalWidth,
+                        height: img.naturalHeight,
+                      });
+                    }}
                   />
 
                   {/* Scanning/Processing effect */}
@@ -212,14 +226,14 @@ export default function HomePage() {
                   )}
 
                   {/* Bounding box overlay */}
-                  {defectBox && result?.status === "not_okay" && (
+                  {defectBox && result?.status === "not_okay" && imageDims && (
                     <div
                       className="absolute z-20 border-2 border-destructive bg-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-all duration-500 ease-out animate-in zoom-in-50"
                       style={{
-                        top: `${defectBox.top}%`,
-                        left: `${defectBox.left}%`,
-                        width: `${defectBox.width}%`,
-                        height: `${defectBox.height}%`,
+                        top: `${(defectBox.top / imageDims.height) * 100}%`,
+                        left: `${(defectBox.left / imageDims.width) * 100}%`,
+                        width: `${(defectBox.width / Math.max(imageDims.width, 1)) * 100}%`,
+                        height: `${(defectBox.height / Math.max(imageDims.height, 1)) * 100}%`,
                       }}
                     >
                       <Badge
@@ -281,6 +295,7 @@ export default function HomePage() {
               onClick={() => {
                 reset();
                 setError(null);
+                setImageDims(null);
               }}
               disabled={!selectedImage || isDetecting || isCompressing}
               className="w-20 md:w-24 text-sm"
