@@ -38,9 +38,14 @@ export function useAuth() {
               .update({ status: "online" })
               .eq("id", userId);
           }
-        } else if (error && error.code !== 'PGRST116') { // PGRST116 is 'no rows' which might happen on sync delay
-          console.error("Profile fetch error:", error);
-          // Don't clear auth immediately on transient network errors
+        } else if (error) {
+          // Log only if it's not a transient/aborted error
+          // Aborted errors sometimes return as an empty object or with a 'The lock request is aborted' message
+          const isAborted = (error as any).message === 'The lock request is aborted' || (Object.keys(error).length === 0 && error.constructor === Object);
+          
+          if (!isAborted && error.code !== 'PGRST116') {
+            console.error("Profile fetch error:", error);
+          }
         }
       } catch (err) {
         console.error("Unexpected fetch error:", err);

@@ -58,6 +58,24 @@ interface DetectionState {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 async function compressImage(file: File): Promise<File> {
   try {
     const imageCompression = (await import("browser-image-compression")).default;
@@ -268,62 +286,89 @@ export const useDetectionStore = create<DetectionState>()(
 
         const partId = `BG-${Math.floor(Math.random() * 9000) + 1000}`;
 
-        // Step 1: Start uploading
-        set(
-          { isDetecting: true, isUploading: true, result: null, defectBox: null },
-          false,
-          "runDetection/start",
-        );
+        try {
+          // Step 1: Start uploading
+          set(
+            { isDetecting: true, isUploading: true, result: null, defectBox: null },
+            false,
+            "runDetection/start",
+          );
 
-        // Step 2: Upload image to Supabase Storage
-        const imageUrl = await uploadToStorage(selectedFile, partId);
-        set({ isUploading: false }, false, "runDetection/uploadDone");
+          // Step 2: Upload image to Supabase Storage with 30s timeout
+          const imageUrl = await withTimeout(
+            uploadToStorage(selectedFile, partId),
+            30000,
+            "Upload ke Supabase memakan waktu terlalu lama (Timeout)."
+          );
+          
+          set({ isUploading: false }, false, "runDetection/uploadDone");
 
-        // Step 3: Call AI API Endpoint
-        const { finalResult, defectBox, anomalies, confidence } = await callAIModel(selectedFile);
+          // Step 3: Call AI API Endpoint with 60s timeout
+          const { finalResult, defectBox, anomalies, confidence } = await withTimeout(
+            callAIModel(selectedFile),
+            60000,
+            "Merespon AI API memakan waktu terlalu lama (Timeout)."
+          );
 
-        set(
-          {
-            result: finalResult,
-            defectBox,
-            confidence,
-            isDetecting: false,
-          },
-          false,
-          "runDetection/aiResult",
-        );
+          set(
+            {
+              result: finalResult,
+              defectBox,
+              confidence,
+              isDetecting: false,
+            },
+            false,
+            "runDetection/aiResult",
+          );
 
-        // Step 4: Persist result to Supabase
-        if (imageUrl) {
-          try {
-            const { saveInspection } = await import(
-              "@/app/actions/database"
-            );
-            await saveInspection({
-              part_id: partId,
-              division_id: divisionId,
-              image_url: imageUrl,
-              ai_result_status: finalResult.status,
-              main_defect: finalResult.reason ?? "None",
-              ai_confidence_score: confidence,
-              anomalies,
-            });
-          } catch (err) {
-            console.error("Error saving inspection:", err);
+          // Step 4: Persist result to Supabase
+          if (imageUrl) {
+            try {
+              const { saveInspection } = await import(
+                "@/app/actions/database"
+              );
+              // Save without waiting for UI update
+              saveInspection({
+                part_id: partId,
+                division_id: divisionId,
+                image_url: imageUrl,
+                ai_result_status: finalResult.status,
+                main_defect: finalResult.reason ?? "None",
+                ai_confidence_score: confidence,
+                anomalies,
+              }).catch(err => console.error("Error background saving inspection:", err));
+            } catch (err) {
+              console.error("Error loading database action:", err);
+            }
           }
-        }
 
-        // Step 5: Prepend to recent detections list
-        set(
-          (state) => ({
-            recentDetections: [
-              { id: partId, status: finalResult.status, time: "Just now" },
-              ...state.recentDetections,
-            ].slice(0, 3),
-          }),
-          false,
-          "runDetection/updateRecent",
-        );
+          // Step 5: Prepend to recent detections list
+          set(
+            (state) => ({
+              recentDetections: [
+                { id: partId, status: finalResult.status, time: "Just now" },
+                ...state.recentDetections,
+              ].slice(0, 3),
+            }),
+            false,
+            "runDetection/updateRecent",
+          );
+        } catch (error: any) {
+          console.error("Detection flow error:", error);
+          
+          // Reset UI and show fallback error
+          set(
+            {
+              isDetecting: false,
+              isUploading: false,
+              result: { status: "not_okay", reason: error?.message || "Terjadi kesalahan internal. Silakan coba lagi." },
+              confidence: 0,
+              defectBox: null,
+            },
+            false,
+            "runDetection/error",
+          );
+        }
       },
 
       // ── setRecentDetections ────────────────────────────
