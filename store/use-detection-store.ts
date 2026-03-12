@@ -114,7 +114,8 @@ async function callAIModel(file: File): Promise<{
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("http://localhost:8000/api/predict", {
+    const apiUrl = process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000";
+    const res = await fetch(`${apiUrl}/api/predict`, {
       method: "POST",
       body: formData,
     });
