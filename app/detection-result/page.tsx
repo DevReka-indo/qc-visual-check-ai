@@ -90,6 +90,14 @@ const COLORS = [
   "#ec4899", // Baret (Pink)
 ];
 
+const DEFECT_COLORS: Record<string, string> = {
+  okay: COLORS[0],
+  cat_mengelupas: COLORS[1],
+  cat_meleber: COLORS[2],
+  besi_lengkung: COLORS[3],
+  baret: COLORS[4],
+};
+
 const DEFECT_LABELS: Record<string, string> = {
   okay: "Okay",
   cat_mengelupas: "Cat Mengelupas",
@@ -439,31 +447,31 @@ export default function DetectionResultPage() {
                     <Bar
                       dataKey="okay"
                       stackId="a"
-                      fill={COLORS[0]}
+                      fill={DEFECT_COLORS.okay}
                       maxBarSize={40}
                     />
                     <Bar
                       dataKey="cat_mengelupas"
                       stackId="a"
-                      fill={COLORS[1]}
+                      fill={DEFECT_COLORS.cat_mengelupas}
                       maxBarSize={40}
                     />
                     <Bar
                       dataKey="cat_meleber"
                       stackId="a"
-                      fill={COLORS[2]}
+                      fill={DEFECT_COLORS.cat_meleber}
                       maxBarSize={40}
                     />
                     <Bar
                       dataKey="besi_lengkung"
                       stackId="a"
-                      fill={COLORS[3]}
+                      fill={DEFECT_COLORS.besi_lengkung}
                       maxBarSize={40}
                     />
                     <Bar
                       dataKey="baret"
                       stackId="a"
-                      fill={COLORS[4]}
+                      fill={DEFECT_COLORS.baret}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={40}
                     />
