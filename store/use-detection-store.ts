@@ -104,48 +104,65 @@ async function uploadToStorage(
   }
 }
 
-function simulateAI(): {
+async function callAIModel(file: File): Promise<{
   finalResult: DetectionResult;
   defectBox: BoundingBox | null;
   anomalies: AnomalyPayload[];
   confidence: number;
-} {
-  const isOkay = Math.random() > 0.5;
-  const confidence = Number((Math.random() * 10 + 89).toFixed(1));
+}> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-  if (isOkay) {
-    return { finalResult: { status: "okay" }, defectBox: null, anomalies: [], confidence };
+    const res = await fetch("http://localhost:8000/api/predict", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      throw new Error(`AI Backend returned ${res.status}`);
+    }
+
+    const json = await res.json();
+    
+    // As in prompt: {"success": true, "data": {"label": "baret", "confidence": 0.95}}
+    const label = json.data?.label || "normal";
+    // Convert 0.95 to 95.0
+    const confidence = parseFloat(((json.data?.confidence || 0) * 100).toFixed(1));
+    
+    const isOkay = label.toLowerCase() === "normal";
+
+    if (isOkay) {
+      return { finalResult: { status: "okay" }, defectBox: null, anomalies: [], confidence };
+    }
+
+    // Default box for visualization since simple API may not provide bbox
+    const box: BoundingBox = { top: 30, left: 30, width: 20, height: 20 };
+
+    return {
+      finalResult: { status: "not_okay", reason: label },
+      defectBox: box,
+      confidence,
+      anomalies: [
+        {
+          defect_type: label,
+          location: "Visual Surface",
+          description: `AI detected anomaly: ${label}`,
+          confidence_score: confidence,
+          bounding_box: box as Record<string, unknown>,
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Failed to call AI model:", error);
+    // Fallback if AI fails
+    return {
+      finalResult: { status: "not_okay", reason: "AI API Error" },
+      defectBox: null,
+      confidence: 0,
+      anomalies: [],
+    };
   }
-
-  const defects = [
-    "Baret",
-    "Besi lengkung/bengkok",
-    "Cat meleber/dlewer",
-    "Cat mengelupas",
-  ];
-  const randomDefect = defects[Math.floor(Math.random() * defects.length)];
-
-  const box: BoundingBox = {
-    top: Math.floor(Math.random() * 40) + 20,
-    left: Math.floor(Math.random() * 40) + 20,
-    width: Math.floor(Math.random() * 20) + 15,
-    height: Math.floor(Math.random() * 20) + 15,
-  };
-
-  return {
-    finalResult: { status: "not_okay", reason: randomDefect },
-    defectBox: box,
-    confidence,
-    anomalies: [
-      {
-        defect_type: randomDefect,
-        location: "Visual Surface",
-        description: `Simulated anomaly detected: ${randomDefect}`,
-        confidence_score: confidence,
-        bounding_box: box as Record<string, unknown>,
-      },
-    ],
-  };
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -210,56 +227,51 @@ export const useDetectionStore = create<DetectionState>()(
         const imageUrl = await uploadToStorage(selectedFile, partId);
         set({ isUploading: false }, false, "runDetection/uploadDone");
 
-        // Step 3: Simulate 2.5s AI processing
-        await new Promise<void>((resolve) => {
-          setTimeout(async () => {
-            const { finalResult, defectBox, anomalies, confidence } =
-              simulateAI();
+        // Step 3: Call AI API Endpoint
+        const { finalResult, defectBox, anomalies, confidence } = await callAIModel(selectedFile);
 
-            set(
-              {
-                result: finalResult,
-                defectBox,
-                confidence,
-                isDetecting: false,
-              },
-              false,
-              "runDetection/aiResult",
+        set(
+          {
+            result: finalResult,
+            defectBox,
+            confidence,
+            isDetecting: false,
+          },
+          false,
+          "runDetection/aiResult",
+        );
+
+        // Step 4: Persist result to Supabase
+        if (imageUrl) {
+          try {
+            const { saveInspection } = await import(
+              "@/app/actions/database"
             );
+            await saveInspection({
+              part_id: partId,
+              division_id: divisionId,
+              image_url: imageUrl,
+              ai_result_status: finalResult.status,
+              main_defect: finalResult.reason ?? "None",
+              ai_confidence_score: confidence,
+              anomalies,
+            });
+          } catch (err) {
+            console.error("Error saving inspection:", err);
+          }
+        }
 
-            // Step 4: Persist result to Supabase
-            try {
-              const { saveInspection } = await import(
-                "@/app/actions/database"
-              );
-              await saveInspection({
-                part_id: partId,
-                division_id: divisionId,
-                image_url: imageUrl,
-                ai_result_status: finalResult.status,
-                main_defect: finalResult.reason ?? "None",
-                ai_confidence_score: confidence,
-                anomalies,
-              });
-            } catch (err) {
-              console.error("Error saving inspection:", err);
-            }
-
-            // Step 5: Prepend to recent detections list
-            set(
-              (state) => ({
-                recentDetections: [
-                  { id: partId, status: finalResult.status, time: "Just now" },
-                  ...state.recentDetections,
-                ].slice(0, 3),
-              }),
-              false,
-              "runDetection/updateRecent",
-            );
-
-            resolve();
-          }, 2500);
-        });
+        // Step 5: Prepend to recent detections list
+        set(
+          (state) => ({
+            recentDetections: [
+              { id: partId, status: finalResult.status, time: "Just now" },
+              ...state.recentDetections,
+            ].slice(0, 3),
+          }),
+          false,
+          "runDetection/updateRecent",
+        );
       },
 
       // ── setRecentDetections ────────────────────────────
