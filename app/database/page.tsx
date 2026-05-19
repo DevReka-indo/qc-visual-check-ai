@@ -107,14 +107,14 @@ export default function DatabasePage() {
     });
   }, [fetchInspections, page, statusFilter]);
 
+  const handleStatusFilterChange = useCallback((value: string) => {
+    setStatusFilter(value);
+    setPage(0);
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
-
-  // Reset to page 0 when filter changes
-  useEffect(() => {
-    setPage(0);
-  }, [statusFilter]);
 
   // ── Client-side search on current page ────────────────────
   const filteredInspections = inspections.filter((item) => {
@@ -212,7 +212,7 @@ export default function DatabasePage() {
             Database
           </h1>
           <p className="text-muted-foreground mt-2">
-            Complete database of all past bogie structural analyses.
+            Complete database of all past visual analyses.
           </p>
         </div>
         <Button
@@ -260,7 +260,10 @@ export default function DatabasePage() {
               </div>
 
               {/* Status filter */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={handleStatusFilterChange}
+              >
                 <SelectTrigger className="w-full sm:w-[150px]">
                   <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                   <SelectValue />

@@ -1,22 +1,68 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { Database, Json } from "@/types/database.types";
+import prisma from "@/lib/prisma";
+import { verifyToken } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-
-type InspectionRow = Database["public"]["Tables"]["inspections"]["Row"];
-type AnomalyRow = Database["public"]["Tables"]["anomalies"]["Row"];
-type DivisionRow = Database["public"]["Tables"]["divisions"]["Row"];
-type UserRow = Database["public"]["Tables"]["users"]["Row"];
+import { cookies } from "next/headers";
+import type { Prisma } from "@prisma/client";
 
 // ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
 
-export type InspectionWithDetails = InspectionRow & {
-  divisions: DivisionRow | null;
-  anomalies: AnomalyRow[];
-  users: Pick<UserRow, "full_name"> | null; // inspector
+const AUTH_COOKIE_NAME = "auth-token";
+
+export type DivisionItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  color_code: string | null;
+  created_at: string;
+};
+
+export type UserProfileWithDivision = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  employee_id: string | null;
+  role: string | null;
+  status: string | null;
+  avatar_url: string | null;
+  last_login: string | null;
+  division_id: string | null;
+  created_at: string;
+  updated_at: string;
+  divisions: DivisionItem | null;
+};
+
+export type AnomalyWithDetails = {
+  id: string;
+  inspection_id: string;
+  defect_type: string | null;
+  location: string | null;
+  description: string | null;
+  confidence_score: number | null;
+  bounding_box: Prisma.JsonValue | null;
+  created_at: string;
+};
+
+export type InspectionWithDetails = {
+  id: string;
+  part_id: string;
+  division_id: string | null;
+  inspection_date: string;
+  image_url: string | null;
+  ai_result_status: string;
+  main_defect: string | null;
+  ai_confidence_score: number | null;
+  validation_status: string | null;
+  inspector_id: string | null;
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+  divisions: DivisionItem | null;
+  anomalies: AnomalyWithDetails[];
+  users: { full_name: string | null } | null;
 };
 
 export type MonthlyStatRow = {
@@ -44,20 +90,182 @@ export type MonthlyDivisionStatRow = {
   baret: number;
 };
 
+type AuthPayload = NonNullable<ReturnType<typeof verifyToken>>;
+
+type DivisionRecord = {
+  id: string;
+  name: string;
+  description: string | null;
+  colorCode: string | null;
+  createdAt: Date;
+};
+
+type UserProfileRecord = {
+  id: string;
+  email: string;
+  fullName: string | null;
+  employeeId: string | null;
+  role: string;
+  status: string;
+  avatarUrl: string | null;
+  lastLogin: Date | null;
+  divisionId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  division: DivisionRecord | null;
+};
+
+type InspectionRecord = {
+  id: string;
+  partId: string;
+  divisionId: string | null;
+  inspectionDate: Date;
+  imageUrl: string | null;
+  aiResultStatus: string;
+  mainDefect: string | null;
+  aiConfidenceScore: number | null;
+  validationStatus: string;
+  inspectorId: string | null;
+  resolutionNote: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  division: DivisionRecord | null;
+  anomalies: {
+    id: string;
+    inspectionId: string;
+    defectType: string | null;
+    location: string | null;
+    description: string | null;
+    confidenceScore: number | null;
+    boundingBox: Prisma.JsonValue | null;
+    createdAt: Date;
+  }[];
+  inspector: { fullName: string | null } | null;
+};
+
+type ProfileUpdates = {
+  full_name?: string;
+  avatar_url?: string;
+  division_id?: string | null;
+  employee_id?: string;
+  fullName?: string;
+  avatarUrl?: string;
+  divisionId?: string | null;
+  employeeId?: string;
+};
+
+async function getAuthPayload(): Promise<AuthPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  return token ? verifyToken(token) : null;
+}
+
+function canAccessUser(payload: AuthPayload, userId: string) {
+  return payload.userId === userId || payload.role === "admin";
+}
+
+function toIso(date: Date | null | undefined) {
+  return date ? date.toISOString() : null;
+}
+
+function mapDivision(division: DivisionRecord | null): DivisionItem | null {
+  if (!division) return null;
+
+  return {
+    id: division.id,
+    name: division.name,
+    description: division.description,
+    color_code: division.colorCode,
+    created_at: division.createdAt.toISOString(),
+  };
+}
+
+function mapUserProfile(user: UserProfileRecord): UserProfileWithDivision {
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.fullName,
+    employee_id: user.employeeId,
+    role: user.role,
+    status: user.status,
+    avatar_url: user.avatarUrl,
+    last_login: toIso(user.lastLogin),
+    division_id: user.divisionId,
+    created_at: user.createdAt.toISOString(),
+    updated_at: user.updatedAt.toISOString(),
+    divisions: mapDivision(user.division),
+  };
+}
+
+function mapInspection(inspection: InspectionRecord): InspectionWithDetails {
+  return {
+    id: inspection.id,
+    part_id: inspection.partId,
+    division_id: inspection.divisionId,
+    inspection_date: inspection.inspectionDate.toISOString(),
+    image_url: inspection.imageUrl,
+    ai_result_status: inspection.aiResultStatus,
+    main_defect: inspection.mainDefect,
+    ai_confidence_score: inspection.aiConfidenceScore,
+    validation_status: inspection.validationStatus,
+    inspector_id: inspection.inspectorId,
+    resolution_note: inspection.resolutionNote,
+    created_at: inspection.createdAt.toISOString(),
+    updated_at: inspection.updatedAt.toISOString(),
+    divisions: mapDivision(inspection.division),
+    anomalies: inspection.anomalies.map((anomaly) => ({
+      id: anomaly.id,
+      inspection_id: anomaly.inspectionId,
+      defect_type: anomaly.defectType,
+      location: anomaly.location,
+      description: anomaly.description,
+      confidence_score: anomaly.confidenceScore,
+      bounding_box: anomaly.boundingBox,
+      created_at: anomaly.createdAt.toISOString(),
+    })),
+    users: inspection.inspector
+      ? { full_name: inspection.inspector.fullName }
+      : null,
+  };
+}
+
 // ─────────────────────────────────────────────
 // DASHBOARD STATS
 // ─────────────────────────────────────────────
 
 export async function getDashboardStats() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_dashboard_stats");
+  try {
+    const [totalInspections, totalAnomalies, activeOperators, pendingTasks, okayCount] =
+      await Promise.all([
+      prisma.inspection.count(),
+      prisma.anomaly.count(),
+      prisma.user.count({
+        where: { status: "online" },
+      }),
+      prisma.inspection.count({
+        where: { validationStatus: "Pending" },
+      }),
+      prisma.inspection.count({
+        where: { aiResultStatus: "okay" },
+      }),
+    ]);
 
-  if (error) {
+    const accuracyRate = totalInspections > 0 ? (okayCount / totalInspections) * 100 : 0;
+    const roundedAccuracy = parseFloat(accuracyRate.toFixed(2));
+
+    return {
+      total_inspections: totalInspections,
+      total_anomalies: totalAnomalies,
+      accuracy_rate: roundedAccuracy,
+      accuracy_percentage: roundedAccuracy,
+      active_operators: activeOperators,
+      active_hours: activeOperators * 8,
+      pending_tasks: pendingTasks,
+    };
+  } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     return null;
   }
-
-  return data && data.length > 0 ? data[0] : null;
 }
 
 // ─────────────────────────────────────────────
@@ -67,17 +275,72 @@ export async function getDashboardStats() {
 export async function getMonthlyStats(
   monthsBack: number = 6,
 ): Promise<MonthlyStatRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_monthly_inspection_stats", {
-    months_back: monthsBack,
-  });
+  try {
+    const thresholdDate = new Date();
+    thresholdDate.setMonth(thresholdDate.getMonth() - monthsBack);
 
-  if (error) {
+    const inspections = await prisma.inspection.findMany({
+      where: {
+        inspectionDate: {
+          gte: thresholdDate,
+        },
+      },
+      select: {
+        inspectionDate: true,
+        aiResultStatus: true,
+        mainDefect: true,
+      },
+    });
+
+    // Group by month
+    const monthlyData: Map<string, MonthlyStatRow> = new Map();
+
+    inspections.forEach((inspection) => {
+      const date = new Date(inspection.inspectionDate);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthLabel = date.toLocaleString("default", { month: "short", year: "numeric" });
+      const key = `${year}-${month}`;
+
+      if (!monthlyData.has(key)) {
+        monthlyData.set(key, {
+          month_label: monthLabel,
+          year_num: year,
+          month_num: month,
+          okay_count: 0,
+          not_okay_count: 0,
+          cat_mengelupas: 0,
+          cat_meleber: 0,
+          besi_lengkung: 0,
+          baret: 0,
+        });
+      }
+
+      const row = monthlyData.get(key)!;
+      if (inspection.aiResultStatus === "okay") {
+        row.okay_count++;
+      } else {
+        row.not_okay_count++;
+      }
+
+      // Count defect types
+      if (inspection.mainDefect) {
+        const defectKey = inspection.mainDefect.toLowerCase();
+        if (defectKey === "cat_mengelupas" || defectKey.includes("mengelupas")) row.cat_mengelupas++;
+        else if (defectKey === "cat_meleber" || defectKey.includes("meleber")) row.cat_meleber++;
+        else if (defectKey === "besi_lengkung" || defectKey.includes("lengkung")) row.besi_lengkung++;
+        else if (defectKey === "baret" || defectKey.includes("baret")) row.baret++;
+      }
+    });
+
+    return Array.from(monthlyData.values()).sort((a, b) => {
+      if (a.year_num !== b.year_num) return a.year_num - b.year_num;
+      return a.month_num - b.month_num;
+    });
+  } catch (error) {
     console.error("Error fetching monthly stats:", error);
     return [];
   }
-
-  return (data as MonthlyStatRow[]) ?? [];
 }
 
 // ─────────────────────────────────────────────
@@ -87,17 +350,73 @@ export async function getMonthlyStats(
 export async function getMonthlyDivisionStats(
   monthsBack: number = 6,
 ): Promise<MonthlyDivisionStatRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_monthly_division_stats", {
-    months_back: monthsBack,
-  });
+  try {
+    const thresholdDate = new Date();
+    thresholdDate.setMonth(thresholdDate.getMonth() - monthsBack);
 
-  if (error) {
+    const inspections = await prisma.inspection.findMany({
+      where: {
+        inspectionDate: {
+          gte: thresholdDate,
+        },
+      },
+      include: {
+        division: true,
+      },
+    });
+
+    // Group by month and division
+    const monthlyDivisionData: Map<string, MonthlyDivisionStatRow> = new Map();
+
+    inspections.forEach((inspection) => {
+      const date = new Date(inspection.inspectionDate);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthLabel = date.toLocaleString("default", { month: "short", year: "numeric" });
+      const divisionName = inspection.division?.name ?? "Unknown";
+      const key = `${year}-${month}-${divisionName}`;
+
+      if (!monthlyDivisionData.has(key)) {
+        monthlyDivisionData.set(key, {
+          month_label: monthLabel,
+          year_num: year,
+          month_num: month,
+          division_name: divisionName,
+          total_count: 0,
+          okay_count: 0,
+          cat_mengelupas: 0,
+          cat_meleber: 0,
+          besi_lengkung: 0,
+          baret: 0,
+        });
+      }
+
+      const row = monthlyDivisionData.get(key)!;
+      row.total_count++;
+
+      if (inspection.aiResultStatus === "okay") {
+        row.okay_count++;
+      }
+
+      // Count defect types
+      if (inspection.mainDefect) {
+        const defectKey = inspection.mainDefect.toLowerCase();
+        if (defectKey === "cat_mengelupas" || defectKey.includes("mengelupas")) row.cat_mengelupas++;
+        else if (defectKey === "cat_meleber" || defectKey.includes("meleber")) row.cat_meleber++;
+        else if (defectKey === "besi_lengkung" || defectKey.includes("lengkung")) row.besi_lengkung++;
+        else if (defectKey === "baret" || defectKey.includes("baret")) row.baret++;
+      }
+    });
+
+    return Array.from(monthlyDivisionData.values()).sort((a, b) => {
+      if (a.year_num !== b.year_num) return a.year_num - b.year_num;
+      if (a.month_num !== b.month_num) return a.month_num - b.month_num;
+      return a.division_name.localeCompare(b.division_name);
+    });
+  } catch (error) {
     console.error("Error fetching monthly division stats:", error);
     return [];
   }
-
-  return (data as MonthlyDivisionStatRow[]) ?? [];
 }
 
 // ─────────────────────────────────────────────
@@ -105,18 +424,15 @@ export async function getMonthlyDivisionStats(
 // ─────────────────────────────────────────────
 
 export async function getDivisions() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("divisions")
-    .select("*")
-    .order("name");
-
-  if (error) {
+  try {
+    const divisions = await prisma.division.findMany({
+      orderBy: { name: "asc" },
+    });
+    return divisions.map(mapDivision).filter((division): division is DivisionItem => division !== null);
+  } catch (error) {
     console.error("Error fetching divisions:", error);
     return [];
   }
-
-  return data;
 }
 
 // ─────────────────────────────────────────────
@@ -130,37 +446,53 @@ export async function getInspections(
   dateFrom?: string, // ISO string e.g. "2026-01-01"
   dateTo?: string, // ISO string e.g. "2026-12-31"
 ) {
-  const supabase = await createClient();
+  try {
+    const whereConditions: Prisma.InspectionWhereInput = {};
+    const inspectionDateFilter: Prisma.DateTimeFilter = {};
 
-  let query = supabase
-    .from("inspections")
-    .select(
-      `
-            *,
-            divisions(*),
-            anomalies(*),
-            users!inspector_id(full_name)
-        `,
-      { count: "exact" },
-    )
-    .order("inspection_date", { ascending: false })
-    .range(offset, offset + limit - 1);
+    if (status) {
+      whereConditions.validationStatus = status;
+    }
 
-  if (status) query = query.eq("validation_status", status);
-  if (dateFrom) query = query.gte("inspection_date", dateFrom);
-  if (dateTo) query = query.lte("inspection_date", dateTo + "T23:59:59Z");
+    if (dateFrom) {
+      inspectionDateFilter.gte = new Date(dateFrom);
+    }
 
-  const { data, error, count } = await query;
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      inspectionDateFilter.lte = endDate;
+    }
 
-  if (error) {
+    if (inspectionDateFilter.gte || inspectionDateFilter.lte) {
+      whereConditions.inspectionDate = inspectionDateFilter;
+    }
+
+    const [data, count] = await Promise.all([
+      prisma.inspection.findMany({
+        where: whereConditions,
+        include: {
+          division: true,
+          anomalies: true,
+          inspector: {
+            select: { fullName: true },
+          },
+        },
+        orderBy: { inspectionDate: "desc" },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.inspection.count({ where: whereConditions }),
+    ]);
+
+    return {
+      data: data.map((item) => mapInspection(item)),
+      count,
+    };
+  } catch (error) {
     console.error("Error fetching inspections:", error);
     return { data: [], count: 0 };
   }
-
-  return {
-    data: (data as InspectionWithDetails[]) ?? [],
-    count: count ?? 0,
-  };
 }
 
 // ─────────────────────────────────────────────
@@ -168,49 +500,62 @@ export async function getInspections(
 // ─────────────────────────────────────────────
 
 export async function getUserProfile(userId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("users")
-    .select(`*, divisions(*)`)
-    .eq("id", userId)
-    .single();
+  try {
+    const payload = await getAuthPayload();
+    if (!payload || !canAccessUser(payload, userId)) {
+      return null;
+    }
 
-  if (error) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { division: true },
+    });
+
+    return user ? mapUserProfile(user) : null;
+  } catch (error) {
     console.error("Error fetching user profile:", error);
     return null;
   }
-
-  return data;
 }
 
 export async function updateUserProfile(
   userId: string,
-  updates: {
-    full_name?: string;
-    avatar_url?: string;
-    division_id?: string | null;
-    employee_id?: string;
-  },
+  updates: ProfileUpdates,
 ) {
-  const supabase = await createClient();
+  try {
+    const payload = await getAuthPayload();
+    if (!payload || !canAccessUser(payload, userId)) {
+      return { error: "Not authenticated" };
+    }
 
-  const { data, error } = await supabase
-    .from("users")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId)
-    .select()
-    .single();
+    const updateData: Prisma.UserUpdateInput = {};
 
-  if (error) {
+    const fullName = updates.full_name ?? updates.fullName;
+    const avatarUrl = updates.avatar_url ?? updates.avatarUrl;
+    const divisionId = updates.division_id ?? updates.divisionId;
+    const employeeId = updates.employee_id ?? updates.employeeId;
+
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (employeeId !== undefined) updateData.employeeId = employeeId;
+    if (divisionId !== undefined) {
+      updateData.division = divisionId
+        ? { connect: { id: divisionId } }
+        : { disconnect: true };
+    }
+
+    const data = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: { division: true },
+    });
+
+    revalidatePath("/user");
+    return { data: mapUserProfile(data) };
+  } catch (error) {
     console.error("Error updating user profile:", error);
-    return { error: error.message };
+    return { error: "Failed to update profile" };
   }
-
-  revalidatePath("/user");
-  return { data };
 }
 
 // ─────────────────────────────────────────────
@@ -232,54 +577,55 @@ export async function saveInspection(payload: {
     bounding_box?: Record<string, unknown>;
   }[];
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: inspection, error: inspError } = await supabase
-    .from("inspections")
-    .insert({
-      part_id: payload.part_id,
-      division_id: payload.division_id,
-      image_url: payload.image_url,
-      ai_result_status: payload.ai_result_status,
-      main_defect: payload.main_defect,
-      ai_confidence_score: payload.ai_confidence_score,
-      inspector_id: user?.id ?? null,
-      validation_status: "Pending",
-    })
-    .select()
-    .single();
-
-  if (inspError) {
-    console.error("Error saving inspection:", inspError);
-    return { error: inspError.message };
-  }
-
-  if (payload.anomalies.length > 0) {
-    const anomaliesToInsert = payload.anomalies.map((a) => ({
-      inspection_id: inspection.id,
-      defect_type: a.defect_type,
-      location: a.location,
-      description: a.description,
-      confidence_score: a.confidence_score,
-      bounding_box: (a.bounding_box ?? null) as Json | null,
-    }));
-
-    const { error: anomError } = await supabase
-      .from("anomalies")
-      .insert(anomaliesToInsert);
-
-    if (anomError) {
-      console.error("Error saving anomalies:", anomError);
+  try {
+    const authPayload = await getAuthPayload();
+    if (!authPayload) {
+      return { error: "Not authenticated" };
     }
-  }
 
-  revalidatePath("/");
-  revalidatePath("/detection-result");
-  return { data: inspection };
+    const inspection = await prisma.inspection.create({
+      data: {
+        partId: payload.part_id,
+        divisionId: payload.division_id || null,
+        imageUrl: payload.image_url,
+        aiResultStatus: payload.ai_result_status,
+        mainDefect: payload.main_defect,
+        aiConfidenceScore: payload.ai_confidence_score,
+        inspectorId: authPayload.userId,
+        validationStatus: "Pending",
+      },
+    });
+
+    if (payload.anomalies.length > 0) {
+      const anomaliesToInsert = payload.anomalies.map((a) => {
+        const base = {
+          inspectionId: inspection.id,
+          defectType: a.defect_type,
+          location: a.location,
+          description: a.description,
+          confidenceScore: a.confidence_score,
+        };
+
+        return a.bounding_box === undefined
+          ? base
+          : {
+              ...base,
+              boundingBox: a.bounding_box as Prisma.InputJsonValue,
+            };
+      });
+
+      await prisma.anomaly.createMany({
+        data: anomaliesToInsert,
+      });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/detection-result");
+    return { data: inspection };
+  } catch (error) {
+    console.error("Error saving inspection:", error);
+    return { error: "Failed to save inspection" };
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -291,27 +637,30 @@ export async function updateInspectionStatus(
   status: "Resolved" | "Reworked" | "Scrapped",
   note?: string,
 ) {
-  const supabase = await createClient();
+  try {
+    const payload = await getAuthPayload();
+    if (!payload) {
+      return { error: "Not authenticated" };
+    }
 
-  const { data, error } = await supabase
-    .from("inspections")
-    .update({
-      validation_status: status,
-      resolution_note: note ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", inspectionId)
-    .select();
+    const data = await prisma.inspection.update({
+      where: { id: inspectionId },
+      data: {
+        validationStatus: status,
+        resolutionNote: note ?? null,
+        inspectorId: payload.userId,
+        updatedAt: new Date(),
+      },
+    });
 
-  if (error) {
+    revalidatePath("/detection-result");
+    revalidatePath("/database");
+
+    return { data };
+  } catch (error) {
     console.error("Error updating inspection status:", error);
-    return { error: error.message };
+    return { error: "Failed to update inspection status" };
   }
-
-  revalidatePath("/detection-result");
-  revalidatePath("/database");
-
-  return { data };
 }
 
 // ─────────────────────────────────────────────
@@ -319,33 +668,30 @@ export async function updateInspectionStatus(
 // ─────────────────────────────────────────────
 
 export async function deleteInspection(inspectionId: string) {
-  const supabase = await createClient();
+  try {
+    const payload = await getAuthPayload();
+    if (!payload) {
+      return { error: "Not authenticated" };
+    }
 
-  // Anomalies will cascade-delete if FK is set, otherwise delete manually first
-  const { error: anomError } = await supabase
-    .from("anomalies")
-    .delete()
-    .eq("inspection_id", inspectionId);
+    // Delete anomalies first (cascade will happen automatically)
+    await prisma.anomaly.deleteMany({
+      where: { inspectionId },
+    });
 
-  if (anomError) {
-    console.error("Error deleting anomalies:", anomError);
-    return { error: anomError.message };
-  }
+    // Then delete inspection
+    await prisma.inspection.delete({
+      where: { id: inspectionId },
+    });
 
-  const { error } = await supabase
-    .from("inspections")
-    .delete()
-    .eq("id", inspectionId);
+    revalidatePath("/detection-result");
+    revalidatePath("/database");
 
-  if (error) {
+    return { success: true };
+  } catch (error) {
     console.error("Error deleting inspection:", error);
-    return { error: error.message };
+    return { error: "Failed to delete inspection" };
   }
-
-  revalidatePath("/detection-result");
-  revalidatePath("/database");
-
-  return { success: true };
 }
 
 // ─────────────────────────────────────────────
@@ -353,26 +699,27 @@ export async function deleteInspection(inspectionId: string) {
 // ─────────────────────────────────────────────
 
 export async function getDefectDistribution() {
-  const supabase = await createClient();
+  try {
+    const inspections = await prisma.inspection.findMany({
+      where: {
+        mainDefect: {
+          not: null,
+        },
+      },
+      select: { mainDefect: true },
+    });
 
-  const { data, error } = await supabase
-    .from("inspections")
-    .select("main_defect")
-    .not("main_defect", "is", null)
-    .neq("main_defect", "None");
+    const distribution: Record<string, number> = {};
+    inspections.forEach((item) => {
+      const type = item.mainDefect ?? "Unknown";
+      distribution[type] = (distribution[type] ?? 0) + 1;
+    });
 
-  if (error) {
+    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
+  } catch (error) {
     console.error("Error fetching defect distribution:", error);
     return [];
   }
-
-  const distribution: Record<string, number> = {};
-  data.forEach((item) => {
-    const type = item.main_defect ?? "Unknown";
-    distribution[type] = (distribution[type] ?? 0) + 1;
-  });
-
-  return Object.entries(distribution).map(([name, value]) => ({ name, value }));
 }
 
 // ─────────────────────────────────────────────
@@ -380,29 +727,31 @@ export async function getDefectDistribution() {
 // ─────────────────────────────────────────────
 
 export async function getNextEmployeeId() {
-  const supabase = await createClient();
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        employeeId: {
+          startsWith: "REKA-QC-",
+        },
+      },
+      select: { employeeId: true },
+    });
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("employee_id")
-    .like("employee_id", "REKA-QC-%");
+    const seqIds = users
+      .map((u) => u.employeeId?.match(/REKA-QC-(\d+)/)?.[1])
+      .filter(Boolean)
+      .map(Number)
+      .filter((n) => n < 1000)
+      .sort((a, b) => b - a);
 
-  if (error) {
+    if (seqIds.length === 0) {
+      return "REKA-QC-001";
+    }
+
+    const nextNum = seqIds[0] + 1;
+    return `REKA-QC-${String(nextNum).padStart(3, "0")}`;
+  } catch (error) {
     console.error("Error fetching latest employee ID:", error);
     return "REKA-QC-001";
   }
-
-  const seqIds = data
-    .map((u) => u.employee_id?.match(/REKA-QC-(\d+)/)?.[1])
-    .filter(Boolean)
-    .map(Number)
-    .filter((n) => n < 1000) // Ignore legacy random 4-digit IDs to start sequence from 001
-    .sort((a, b) => b - a);
-
-  if (seqIds.length === 0) {
-    return "REKA-QC-001";
-  }
-
-  const nextNum = seqIds[0] + 1;
-  return `REKA-QC-${String(nextNum).padStart(3, "0")}`;
 }

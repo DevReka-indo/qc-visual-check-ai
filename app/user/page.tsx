@@ -5,12 +5,8 @@ import {
   User as UserIcon,
   Mail,
   ShieldCheck,
-  Clock,
-  Lock,
-  Camera,
   CheckCircle2,
   AlertCircle,
-  LogOut,
   CreditCard,
   FileCheck,
   Target,
@@ -28,7 +24,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -53,6 +48,12 @@ type Division = {
   name: string;
 };
 
+type ProfileDraft = {
+  profileId: string | null;
+  fullName: string;
+  divisionId: string | null;
+};
+
 // ─── Types ───────────────────────────────────────────────────
 type Feedback = { type: "success" | "error"; message: string } | null;
 
@@ -69,9 +70,7 @@ export default function UserPage() {
 
   const loading = authLoading || statsLoading;
 
-  const [fullName, setFullName] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
-  const [divisionId, setDivisionId] = useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
@@ -82,15 +81,6 @@ export default function UserPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
-
-  // ── Seed form when profile loads ────────────────────────────
-  useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name ?? "");
-      setEmployeeId(profile.employee_id ?? "");
-      setDivisionId(profile.division_id);
-    }
-  }, [profile]);
 
   // ── Fetch divisions ──────────────────────────────────────────
   useEffect(() => {
@@ -107,20 +97,29 @@ export default function UserPage() {
   }, [fetchAll]);
 
   // ── Helpers ─────────────────────────────────────────────────
+  const profileId = profile?.id ?? null;
+  const isDraftCurrent = profileDraft?.profileId === profileId;
+  const fullName = isDraftCurrent
+    ? profileDraft.fullName
+    : (profile?.full_name ?? "");
+  const employeeId = profile?.employee_id ?? "";
+  const divisionId = isDraftCurrent
+    ? profileDraft.divisionId
+    : (profile?.division_id ?? null);
   const displayEmail = authEmail ?? profile?.email ?? "—";
 
   const displayLastLogin = profile?.last_login
     ? format(new Date(profile.last_login), "dd MMM yyyy, HH:mm")
     : "—";
 
-  const initials = profile?.full_name
-    ? profile.full_name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "RI";
+  const updateProfileDraft = (updates: Partial<Omit<ProfileDraft, "profileId">>) => {
+    setProfileDraft({
+      profileId,
+      fullName,
+      divisionId,
+      ...updates,
+    });
+  };
 
   // ── Save Profile ─────────────────────────────────────────────
   async function handleSaveProfile(e: React.FormEvent) {
@@ -137,16 +136,10 @@ export default function UserPage() {
 
     if (result.error) {
       setProfileFeedback({ type: "error", message: result.error });
-    } else {
-      // Find the selected division object to update the store with full details
-      const selectedDivision = divisions.find((d) => d.id === divisionId);
-      
-      updateProfile({
-        full_name: fullName,
-        division_id: divisionId,
-        divisions: selectedDivision ? { ...selectedDivision, description: null, color_code: null, created_at: null } : null,
-      });
-      
+    } else if (result.data) {
+      updateProfile(result.data);
+      setProfileDraft(null);
+
       setProfileFeedback({
         type: "success",
         message: "Profil berhasil disimpan!",
@@ -375,7 +368,9 @@ export default function UserPage() {
                       <Input
                         className="pl-10"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) =>
+                          updateProfileDraft({ fullName: e.target.value })
+                        }
                         placeholder="Masukkan nama lengkap"
                         disabled={loading}
                       />
@@ -394,7 +389,7 @@ export default function UserPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-1">
-                      Email terhubung ke akun Supabase Auth dan tidak dapat
+                      Email terhubung ke akun lokal dan tidak dapat
                       diubah di sini.
                     </p>
                   </div>
@@ -403,7 +398,11 @@ export default function UserPage() {
                     <label className="text-sm font-medium">Divisi Kerja</label>
                     <Select
                       value={divisionId ?? "none"}
-                      onValueChange={(val) => setDivisionId(val === "none" ? null : val)}
+                      onValueChange={(val) =>
+                        updateProfileDraft({
+                          divisionId: val === "none" ? null : val,
+                        })
+                      }
                       disabled={loading}
                     >
                       <SelectTrigger>

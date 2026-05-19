@@ -153,7 +153,7 @@ export default function HomePage() {
           Workspace Deteksi
         </h1>
         <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
-          Upload struktur bawah bogie kereta (Train Bogie Base) untuk dianalisis
+          Upload foto temuan untuk dianalisis
           oleh AI.
         </p>
       </div>
@@ -197,7 +197,7 @@ export default function HomePage() {
                 <div className="relative w-full h-full flex items-center justify-center p-2 group">
                   <img
                     src={selectedImage}
-                    alt="Uploaded bogie"
+                    alt="Uploaded visual"
                     className="max-h-[240px] md:max-h-[300px] object-contain rounded-md shadow-sm z-10"
                     onLoad={(e) => {
                       const img = e.currentTarget;
@@ -379,7 +379,7 @@ export default function HomePage() {
                           Status Akhir
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Integritas Struktur Bogie
+                          Temuan
                         </p>
                       </div>
                     </div>

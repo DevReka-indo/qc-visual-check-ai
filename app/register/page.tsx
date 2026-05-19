@@ -1,15 +1,13 @@
 "use client"
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Lock, User, Mail, CreditCard, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Lock, User, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from 'next/link';
 import { signUp } from '@/app/actions/auth';
 import { getNextEmployeeId } from '@/app/actions/database';
 import { getFriendlyAuthError } from '@/lib/utils';
 
 export default function RegisterPage() {
-    const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [generatedId, setGeneratedId] = useState("Loading...");

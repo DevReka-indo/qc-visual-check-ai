@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Cropper, { Point, Area } from "react-easy-crop";
-import { Camera, Loader2, X, Check } from "lucide-react";
+import { Camera, Loader2, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getCroppedImg } from "@/lib/crop-image";
-import { createClient } from "@/utils/supabase/client";
 
 interface AvatarUploadProps {
   userId: string;
@@ -35,8 +34,6 @@ export function AvatarUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const supabase = createClient();
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -60,26 +57,24 @@ export function AvatarUpload({
     try {
       setIsUploading(true);
       const croppedBlob = await getCroppedImg(image, croppedAreaPixels);
-      const fileExt = "jpg";
-      const fileName = `${userId}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      
+      // Create form data for upload
+      const formData = new FormData();
+      formData.append("file", croppedBlob, "avatar.jpg");
+      formData.append("userId", userId);
 
-      // Upload to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, croppedBlob, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
+      // Upload via API route
+      const response = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (uploadError) throw uploadError;
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
 
-      // Get Public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
-      onUploadSuccess(publicUrl);
+      const { url } = await response.json();
+      onUploadSuccess(url);
       setIsDialogOpen(false);
       setImage(null);
     } catch (error) {

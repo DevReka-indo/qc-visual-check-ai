@@ -1,14 +1,12 @@
 "use client"
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { AlertCircle, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import Link from 'next/link';
 import { signIn } from '@/app/actions/auth';
 import { getFriendlyAuthError } from '@/lib/utils';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

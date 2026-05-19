@@ -1,33 +1,91 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import prisma from "@/lib/prisma";
+import {
+  comparePassword,
+  generateToken,
+  hashPassword,
+  validatePasswordStrength,
+  verifyToken,
+} from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+
+const AUTH_COOKIE_NAME = "auth-token";
+const AUTH_COOKIE_MAX_AGE = 24 * 60 * 60; // 24 hours
+
+async function setAuthCookie(token: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: AUTH_COOKIE_MAX_AGE,
+    path: "/",
+  });
+}
+
+async function clearAuthCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+}
 
 export async function signIn(formData: FormData) {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = formData.get("password") as string;
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
+  if (!email || !password) {
+    return { error: "Email and password are required" };
   }
 
-  // Update last_login timestamp in public.users
-  if (data.user) {
-    await supabase
-      .from("users")
-      .update({ 
-        last_login: new Date().toISOString(),
-        status: "online"
-      })
-      .eq("id", data.user.id);
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        fullName: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      return { error: "Invalid email or password" };
+    }
+
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      return { error: "Invalid email or password" };
+    }
+
+    // Update last_login and status
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLogin: new Date(),
+        status: "online",
+      },
+    });
+
+    // Generate JWT token
+    const token = await generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    await setAuthCookie(token);
+  } catch (error) {
+    console.error("Sign in error:", error);
+    return { error: "An error occurred during sign in" };
   }
 
   revalidatePath("/", "layout");
@@ -35,58 +93,70 @@ export async function signIn(formData: FormData) {
 }
 
 export async function signUp(formData: FormData) {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = formData.get("password") as string;
-  const fullName = formData.get("fullName") as string;
-  const employeeId = formData.get("employeeId") as string;
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const employeeId = String(formData.get("employeeId") ?? "").trim();
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        employee_id: employeeId,
-      },
-    },
-  });
-
-  if (error) {
-    return { error: error.message };
+  if (!email || !password || !fullName) {
+    return { error: "Email, password, and full name are required" };
   }
 
-  // The handle_new_user trigger already creates the row in public.users.
-  // We only need to UPDATE the fields the trigger doesn't cover
-  // (employee_id, role, status, email).
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from("users")
-      .update({
-        full_name: fullName,
-        employee_id: employeeId,
-        email: email,
-        role: "operator",
-        status: "online",
-        last_login: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", data.user.id);
+  // Validate password strength
+  const passwordValidation = validatePasswordStrength(password);
+  if (!passwordValidation.isValid) {
+    return { error: passwordValidation.errors.join(", ") };
+  }
 
-    if (profileError) {
-      // Trigger may not have fired yet on email-confirmation flow;
-      // do a soft upsert as fallback.
-      await supabase.from("users").upsert({
-        id: data.user.id,
-        full_name: fullName,
-        employee_id: employeeId,
-        email: email,
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+
+    if (existingUser) {
+      return { error: "Email already in use" };
+    }
+
+    if (employeeId) {
+      const existingEmployee = await prisma.user.findUnique({
+        where: { employeeId },
+      });
+
+      if (existingEmployee) {
+        return { error: "Employee ID already in use" };
+      }
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create new user
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        fullName,
+        employeeId: employeeId || null,
         role: "operator",
         status: "online",
-        last_login: new Date().toISOString(),
-      });
-    }
+        lastLogin: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    // Generate JWT token
+    const token = await generateToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+    });
+
+    await setAuthCookie(token);
+  } catch (error) {
+    console.error("Sign up error:", error);
+    return { error: "An error occurred during sign up" };
   }
 
   revalidatePath("/", "layout");
@@ -94,53 +164,75 @@ export async function signUp(formData: FormData) {
 }
 
 export async function signOut() {
-  const supabase = await createClient();
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    const payload = token ? verifyToken(token) : null;
 
-  // Mark user as offline before signing out
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
-    await supabase
-      .from("users")
-      .update({ status: "offline" })
-      .eq("id", user.id);
+    await clearAuthCookie();
+
+    if (payload) {
+      await prisma.user.update({
+        where: { id: payload.userId },
+        data: { status: "offline" },
+      });
+    }
+  } catch (error) {
+    console.error("Sign out error:", error);
+    return { error: "An error occurred during sign out" };
   }
 
-  await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/auth");
 }
 
-export async function updatePassword(
-  currentPassword: string,
-  newPassword: string,
-) {
-  const supabase = await createClient();
+export async function updatePassword(currentPassword: string, newPassword: string) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
 
-  // Re-authenticate with current password first to confirm identity
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) {
-    return { error: "User not found." };
+    if (!token) {
+      return { error: "Not authenticated" };
+    }
+
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return { error: "Invalid session" };
+    }
+
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.isValid) {
+      return { error: passwordValidation.errors.join(", ") };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, password: true },
+    });
+
+    if (!user) {
+      return { error: "User not found" };
+    }
+
+    const isCurrentPasswordValid = await comparePassword(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      return { error: "Current password is incorrect" };
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update password error:", error);
+    return { error: "An error occurred while updating password" };
   }
-
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: currentPassword,
-  });
-
-  if (signInError) {
-    return { error: "Password saat ini tidak sesuai." };
-  }
-
-  // Now update to the new password
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { success: true };
 }

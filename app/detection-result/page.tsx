@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  AlertTriangle,
   AlertCircle,
   Clock,
   Calendar as CalendarIcon,
@@ -175,8 +174,6 @@ export default function DetectionResultPage() {
 
   // Chart derived state
   const [chartData, setChartData] = useState<ChartRow[]>([]);
-  const [divisionNames, setDivisionNames] = useState<string[]>([]);
-
   // Validation dialog
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);

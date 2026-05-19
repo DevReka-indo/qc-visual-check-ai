@@ -115,3 +115,21 @@ INSERT INTO anomalies (inspection_id, defect_type, location, description, confid
 ('e1e1e1e1-e1e1-41e1-e1e1-e1e1e1e1e1e1', 'Cat mengelupas', 'Bottom Left Frame', 'Significant paint peeling indicating exposure.', 92.4, '{"x": 150, "y": 200, "w": 320, "h": 240}'),
 ('e3e3e3e3-e3e3-43e3-e3e3-e3e3e3e3e3e3', 'Baret Dalam', 'Side Panel', 'Deep scratch potentially affecting structural integrity.', 88.1, '{"x": 400, "y": 100, "w": 120, "h": 80}')
 ON CONFLICT DO NOTHING;
+
+CREATE POLICY "Allow insert inspections"
+ON inspections
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Allow insert anomalies"
+ON anomalies
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Allow update inspections"
+ON inspections
+FOR UPDATE
+TO authenticated
+USING (true);

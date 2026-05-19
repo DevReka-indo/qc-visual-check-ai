@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model Division {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  description String?
+  colorCode String?  @map("color_code")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  users       User[]
+  inspections Inspection[]
+
+  @@map("divisions")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hash
+  fullName  String?  @map("full_name")
+  employeeId String? @unique @map("employee_id")
+  
+  role      String   @default("operator")
+  status    String   @default("offline")
+  
+  divisionId String?  @map("division_id")
+  division   Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  
+  avatarUrl String?  @map("avatar_url")
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  lastLogin DateTime? @map("last_login") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  inspections Inspection[]
+
+  @@index([divisionId])
+  @@index([status])
+  @@map("users")
+}
+
+model Inspection {
+  id                  String   @id @default(uuid())
+  partId              String   @map("part_id")
+  
+  divisionId          String?  @map("division_id")
+  division            Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  
+  inspectionDate      DateTime @default(now()) @map("inspection_date") @db.Timestamptz()
+  imageUrl            String?  @map("image_url")
+  
+  aiResultStatus      String   @map("ai_result_status") // "okay" or "not_okay"
+  mainDefect          String?  @map("main_defect")
+  aiConfidenceScore   Float?   @map("ai_confidence_score")
+  
+  validationStatus    String   @default("Pending") @map("validation_status") // "Pending", "Resolved", "Reworked", "Scrapped"
+  
+  inspectorId         String?  @map("inspector_id")
+  inspector           User?    @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  
+  resolutionNote      String?  @map("resolution_note")
+  
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  anomalies Anomaly[]
+
+  @@index([divisionId])
+  @@index([inspectionDate])
+  @@index([inspectorId])
+  @@index([validationStatus])
+  @@map("inspections")
+}
+
+model Anomaly {
+  id                String   @id @default(uuid())
+  
+  inspectionId      String   @map("inspection_id")
+  inspection        Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  
+  defectType        String?  @map("defect_type")
+  location          String?
+  description       String?
+  confidenceScore   Float?   @map("confidence_score")
+  boundingBox       Json?    @map("bounding_box")
+
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([inspectionId])
+  @@map("anomalies")
+}

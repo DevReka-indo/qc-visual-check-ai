@@ -44,3 +44,24 @@ next-env.d.ts
 .agent/
 .agents/
 .codex/
+
+# python env
+ai-backend/venv/
+ai-backend/dataset/
+ai-backend/runs/
+ai-backend/__pycache__/
+ai-backend/**/*.pyc
+venv/
+**/venv/
+__pycache__/
+*.pyc
+
+# ai model/training output
+runs/
+*.pt
+*.rar
+ai-backend/dataset/*.zip
+
+# secrets
+keys/
+*.json

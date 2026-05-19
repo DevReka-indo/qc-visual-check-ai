@@ -74,7 +74,7 @@ export default function StatisticsPage() {
           Statistic
         </h1>
         <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
-          Key performance metrics and historical data analysis of train bogies.
+          Key performance metrics and historical data analysis of visual findings.
         </p>
       </div>
 

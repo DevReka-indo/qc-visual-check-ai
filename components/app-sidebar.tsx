@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Home, ScanSearch, BarChart3, Database, User, LogOut } from "lucide-react" // Tambah icon LogOut
+import { Home, ScanSearch, BarChart3, Database, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation" // Tambah useRouter
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { signOut } from "@/app/actions/auth"
 
@@ -17,7 +17,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarFooter, // Tambahkan SidebarFooter
+    SidebarFooter,
 } from "@/components/ui/sidebar"
 
 // IMPORT COMPONENT ALERT DIALOG
@@ -65,9 +65,7 @@ const data = {
 
 export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
-    const router = useRouter() // Inisialisasi router
 
-    // Fungsi Logout
     const handleLogout = async () => {
         await signOut()
     }
