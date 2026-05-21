@@ -50,12 +50,16 @@ interface StatsState {
 /** Convert raw MonthlyStatRow[] → MonthlyChartRow[] and fill empty months */
 function toChartData(rows: MonthlyStatRow[]): MonthlyChartRow[] {
   if (rows.length === 0) {
-    // Return last 6 months as placeholders so the chart axis still renders
     const now = new Date();
+
     return Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+
       return {
-        name: d.toLocaleString("en-US", { month: "short" }),
+        name: d.toLocaleString("en-US", {
+          month: "short",
+          year: "numeric",
+        }),
         okay: 0,
         not_okay: 0,
         cat_mengelupas: 0,
@@ -68,12 +72,12 @@ function toChartData(rows: MonthlyStatRow[]): MonthlyChartRow[] {
 
   return rows.map((r) => ({
     name: r.month_label,
-    okay: Number(r.okay_count),
-    not_okay: Number(r.not_okay_count),
-    cat_mengelupas: Number(r.cat_mengelupas),
-    cat_meleber: Number(r.cat_meleber),
-    besi_lengkung: Number(r.besi_lengkung),
-    baret: Number(r.baret),
+    okay: Number(r.okay_count ?? 0),
+    not_okay: Number(r.not_okay_count ?? 0),
+    cat_mengelupas: Number(r.cat_mengelupas ?? 0),
+    cat_meleber: Number(r.cat_meleber ?? 0),
+    besi_lengkung: Number(r.besi_lengkung ?? 0),
+    baret: Number(r.baret ?? 0),
   }));
 }
 

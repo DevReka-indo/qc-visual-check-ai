@@ -47,6 +47,7 @@ next-env.d.ts
 
 # python env
 ai-backend/venv/
+ai-backend/uploads/
 ai-backend/dataset/
 ai-backend/runs/
 ai-backend/__pycache__/

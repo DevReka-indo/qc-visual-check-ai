@@ -113,10 +113,10 @@ function buildDefectChartData(
   const map = new Map<string, ChartRow>();
 
   rows.forEach((r) => {
-    // If a division is selected, only include matches
     if (selectedDivisionName && r.division_name !== selectedDivisionName) return;
 
-    const key = `${r.month_label} ${r.year_num}`;
+    const key = `${r.year_num}-${String(r.month_num).padStart(2, "0")}`;
+
     if (!map.has(key)) {
       map.set(key, {
         month: r.month_label,
@@ -129,11 +129,12 @@ function buildDefectChartData(
     }
 
     const entry = map.get(key)!;
-    entry.okay += Number(r.okay_count);
-    entry.cat_mengelupas += Number(r.cat_mengelupas);
-    entry.cat_meleber += Number(r.cat_meleber);
-    entry.besi_lengkung += Number(r.besi_lengkung);
-    entry.baret += Number(r.baret);
+
+    entry.okay += Number(r.okay_count ?? 0);
+    entry.cat_mengelupas += Number(r.cat_mengelupas ?? 0);
+    entry.cat_meleber += Number(r.cat_meleber ?? 0);
+    entry.besi_lengkung += Number(r.besi_lengkung ?? 0);
+    entry.baret += Number(r.baret ?? 0);
   });
 
   return Array.from(map.values());
@@ -406,12 +407,15 @@ export default function DetectionResultPage() {
                   <BarChart
                     data={chartData}
                     margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
+                    barGap={4}
+                    barCategoryGap="25%"
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
                       stroke="#e5e7eb"
                     />
+
                     <XAxis
                       dataKey="month"
                       axisLine={false}
@@ -419,6 +423,7 @@ export default function DetectionResultPage() {
                       tick={{ fontSize: 11, fill: "#6b7280" }}
                       dy={8}
                     />
+
                     <YAxis
                       axisLine={false}
                       tickLine={false}
@@ -426,6 +431,7 @@ export default function DetectionResultPage() {
                       allowDecimals={false}
                       width={28}
                     />
+
                     <RechartsTooltip
                       contentStyle={{
                         borderRadius: "8px",
@@ -433,44 +439,52 @@ export default function DetectionResultPage() {
                         boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                         fontSize: "12px",
                       }}
-                      formatter={(value, name) => [value, DEFECT_LABELS[name as string] || name]}
+                      formatter={(value, name) => [
+                        value,
+                        DEFECT_LABELS[name as string] || name,
+                      ]}
                     />
+
                     <Legend
                       iconType="circle"
                       iconSize={8}
                       wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
                       formatter={(value) => DEFECT_LABELS[value as string] || value}
                     />
+
                     <Bar
                       dataKey="okay"
-                      stackId="a"
                       fill={DEFECT_COLORS.okay}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="cat_mengelupas"
-                      stackId="a"
                       fill={DEFECT_COLORS.cat_mengelupas}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="cat_meleber"
-                      stackId="a"
                       fill={DEFECT_COLORS.cat_meleber}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="besi_lengkung"
-                      stackId="a"
                       fill={DEFECT_COLORS.besi_lengkung}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="baret"
-                      stackId="a"
                       fill={DEFECT_COLORS.baret}
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
+                      maxBarSize={24}
                     />
                   </BarChart>
                 </ResponsiveContainer>

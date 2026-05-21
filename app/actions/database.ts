@@ -276,13 +276,18 @@ export async function getMonthlyStats(
   monthsBack: number = 6,
 ): Promise<MonthlyStatRow[]> {
   try {
-    const thresholdDate = new Date();
-    thresholdDate.setMonth(thresholdDate.getMonth() - monthsBack);
+    const now = new Date();
+
+    const startDate = new Date(
+      now.getFullYear(),
+      now.getMonth() - (monthsBack - 1),
+      1,
+    );
 
     const inspections = await prisma.inspection.findMany({
       where: {
         inspectionDate: {
-          gte: thresholdDate,
+          gte: startDate,
         },
       },
       select: {
@@ -290,46 +295,88 @@ export async function getMonthlyStats(
         aiResultStatus: true,
         mainDefect: true,
       },
+      orderBy: {
+        inspectionDate: "asc",
+      },
     });
 
-    // Group by month
     const monthlyData: Map<string, MonthlyStatRow> = new Map();
+
+    // Buat placeholder 6 bulan terakhir agar chart tetap lengkap
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+
+      monthlyData.set(key, {
+        month_label: date.toLocaleString("en-US", {
+          month: "short",
+          year: "numeric",
+        }),
+        year_num: year,
+        month_num: month,
+        okay_count: 0,
+        not_okay_count: 0,
+        cat_mengelupas: 0,
+        cat_meleber: 0,
+        besi_lengkung: 0,
+        baret: 0,
+      });
+    }
 
     inspections.forEach((inspection) => {
       const date = new Date(inspection.inspectionDate);
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
-      const monthLabel = date.toLocaleString("default", { month: "short", year: "numeric" });
-      const key = `${year}-${month}`;
+      const key = `${year}-${String(month).padStart(2, "0")}`;
 
-      if (!monthlyData.has(key)) {
-        monthlyData.set(key, {
-          month_label: monthLabel,
-          year_num: year,
-          month_num: month,
-          okay_count: 0,
-          not_okay_count: 0,
-          cat_mengelupas: 0,
-          cat_meleber: 0,
-          besi_lengkung: 0,
-          baret: 0,
-        });
+      const row = monthlyData.get(key);
+      if (!row) return;
+
+      const status = String(inspection.aiResultStatus ?? "").toLowerCase();
+      const defect = String(inspection.mainDefect ?? "").toLowerCase();
+
+      const isOkay =
+        status === "okay" ||
+        defect === "none" ||
+        defect === "";
+
+      if (isOkay) {
+        row.okay_count += 1;
+        return;
       }
 
-      const row = monthlyData.get(key)!;
-      if (inspection.aiResultStatus === "okay") {
-        row.okay_count++;
+      row.not_okay_count += 1;
+
+      if (defect === "paint run") {
+        row.cat_meleber += 1;
+      } else if (defect === "scratch") {
+        row.baret += 1;
+      } else if (defect === "OK") {
+        row.okay_count += 1;
+      } else if (
+        defect === "cat_mengelupas" ||
+        defect.includes("mengelupas")
+      ) {
+        row.cat_mengelupas += 1;
+      } else if (
+        defect === "cat_meleber" ||
+        defect.includes("meleber")
+      ) {
+        row.cat_meleber += 1;
+      } else if (
+        defect === "besi_lengkung" ||
+        defect.includes("lengkung")
+      ) {
+        row.besi_lengkung += 1;
+      } else if (
+        defect === "baret" ||
+        defect.includes("baret")
+      ) {
+        row.baret += 1;
       } else {
-        row.not_okay_count++;
-      }
-
-      // Count defect types
-      if (inspection.mainDefect) {
-        const defectKey = inspection.mainDefect.toLowerCase();
-        if (defectKey === "cat_mengelupas" || defectKey.includes("mengelupas")) row.cat_mengelupas++;
-        else if (defectKey === "cat_meleber" || defectKey.includes("meleber")) row.cat_meleber++;
-        else if (defectKey === "besi_lengkung" || defectKey.includes("lengkung")) row.besi_lengkung++;
-        else if (defectKey === "baret" || defectKey.includes("baret")) row.baret++;
+        row.besi_lengkung += 1;
       }
     });
 
@@ -351,30 +398,42 @@ export async function getMonthlyDivisionStats(
   monthsBack: number = 6,
 ): Promise<MonthlyDivisionStatRow[]> {
   try {
-    const thresholdDate = new Date();
-    thresholdDate.setMonth(thresholdDate.getMonth() - monthsBack);
+    const now = new Date();
+
+    const startDate = new Date(
+      now.getFullYear(),
+      now.getMonth() - (monthsBack - 1),
+      1,
+    );
 
     const inspections = await prisma.inspection.findMany({
       where: {
         inspectionDate: {
-          gte: thresholdDate,
+          gte: startDate,
         },
       },
       include: {
         division: true,
       },
+      orderBy: {
+        inspectionDate: "asc",
+      },
     });
 
-    // Group by month and division
     const monthlyDivisionData: Map<string, MonthlyDivisionStatRow> = new Map();
 
     inspections.forEach((inspection) => {
       const date = new Date(inspection.inspectionDate);
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
-      const monthLabel = date.toLocaleString("default", { month: "short", year: "numeric" });
+
+      const monthLabel = date.toLocaleString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+
       const divisionName = inspection.division?.name ?? "Unknown";
-      const key = `${year}-${month}-${divisionName}`;
+      const key = `${year}-${String(month).padStart(2, "0")}-${divisionName}`;
 
       if (!monthlyDivisionData.has(key)) {
         monthlyDivisionData.set(key, {
@@ -392,19 +451,45 @@ export async function getMonthlyDivisionStats(
       }
 
       const row = monthlyDivisionData.get(key)!;
+
       row.total_count++;
 
-      if (inspection.aiResultStatus === "okay") {
+      const status = String(inspection.aiResultStatus ?? "").toLowerCase();
+      const defect = String(inspection.mainDefect ?? "").toLowerCase();
+
+      if (status === "okay" || defect === "none" || defect === "") {
         row.okay_count++;
+        return;
       }
 
-      // Count defect types
-      if (inspection.mainDefect) {
-        const defectKey = inspection.mainDefect.toLowerCase();
-        if (defectKey === "cat_mengelupas" || defectKey.includes("mengelupas")) row.cat_mengelupas++;
-        else if (defectKey === "cat_meleber" || defectKey.includes("meleber")) row.cat_meleber++;
-        else if (defectKey === "besi_lengkung" || defectKey.includes("lengkung")) row.besi_lengkung++;
-        else if (defectKey === "baret" || defectKey.includes("baret")) row.baret++;
+      if (defect === "paint run") {
+        row.cat_meleber++;
+      } else if (defect === "scratch") {
+        row.baret++;
+      } else if (defect === "ok") {
+        row.cat_mengelupas++;
+      } else if (
+        defect === "cat_mengelupas" ||
+        defect.includes("mengelupas")
+      ) {
+        row.cat_mengelupas++;
+      } else if (
+        defect === "cat_meleber" ||
+        defect.includes("meleber")
+      ) {
+        row.cat_meleber++;
+      } else if (
+        defect === "besi_lengkung" ||
+        defect.includes("lengkung")
+      ) {
+        row.besi_lengkung++;
+      } else if (
+        defect === "baret" ||
+        defect.includes("baret")
+      ) {
+        row.baret++;
+      } else {
+        row.besi_lengkung++;
       }
     });
 

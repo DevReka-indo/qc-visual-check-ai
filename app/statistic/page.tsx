@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { TrendingUp, Clock, FileCheck, AlertTriangle } from "lucide-react";
 import {
   BarChart,
@@ -28,24 +28,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStatsStore } from "@/store/use-stats-store";
 
 const COLORS = [
-  "#10b981", // Okay (Green)
-  "#f97316", // Cat mengelupas (Orange)
-  "#fbbf24", // Cat meleber (Amber)
-  "#8b5cf6", // Besi lengkung (Purple)
-  "#ec4899", // Baret (Pink)
+  "#10b981", // Okay
+  "#f97316", // Cat Mengelupas
+  "#fbbf24", // Cat Meleber
+  "#8b5cf6", // Besi Lengkung
+  "#ec4899", // Baret
 ];
 
 const DEFECT_COLORS: Record<string, string> = {
-  "Okay": COLORS[0],
+  okay: COLORS[0],
+  cat_mengelupas: COLORS[1],
+  cat_meleber: COLORS[2],
+  besi_lengkung: COLORS[3],
+  baret: COLORS[4],
+
+  Okay: COLORS[0],
   "Cat Mengelupas": COLORS[1],
   "Cat Meleber": COLORS[2],
   "Besi Lengkung": COLORS[3],
-  "Baret": COLORS[4],
-  "okay": COLORS[0],
-  "cat_mengelupas": COLORS[1],
-  "cat_meleber": COLORS[2],
-  "besi_lengkung": COLORS[3],
-  "baret": COLORS[4],
+  Baret: COLORS[4],
 };
 
 const DEFECT_LABELS: Record<string, string> = {
@@ -54,10 +55,61 @@ const DEFECT_LABELS: Record<string, string> = {
   cat_meleber: "Cat Meleber",
   besi_lengkung: "Besi Lengkung",
   baret: "Baret",
+  not_okay: "Not Okay",
+
+  Okay: "Okay",
+  "Cat Mengelupas": "Cat Mengelupas",
+  "Cat Meleber": "Cat Meleber",
+  "Besi Lengkung": "Besi Lengkung",
+  Baret: "Baret",
 };
 
+type RawMonthlyChartRow = {
+  name: string;
+  okay?: number;
+  not_okay?: number;
+  cat_mengelupas?: number;
+  cat_meleber?: number;
+  besi_lengkung?: number;
+  baret?: number;
+};
+
+type MonthlyChartRow = {
+  name: string;
+  okay: number;
+  cat_mengelupas: number;
+  cat_meleber: number;
+  besi_lengkung: number;
+  baret: number;
+  not_okay: number;
+};
+
+function normalizeMonthlyChartData(
+  data: RawMonthlyChartRow[] = []
+): MonthlyChartRow[] {
+  return data.map((row) => {
+    const okay = Number(row.okay ?? 0);
+    const cat_mengelupas = Number(row.cat_mengelupas ?? 0);
+    const cat_meleber = Number(row.cat_meleber ?? 0);
+    const besi_lengkung = Number(row.besi_lengkung ?? 0);
+    const baret = Number(row.baret ?? 0);
+
+    const calculatedNotOkay =
+      cat_mengelupas + cat_meleber + besi_lengkung + baret;
+
+    return {
+      name: row.name,
+      okay,
+      cat_mengelupas,
+      cat_meleber,
+      besi_lengkung,
+      baret,
+      not_okay: calculatedNotOkay || Number(row.not_okay ?? 0),
+    };
+  });
+}
+
 export default function StatisticsPage() {
-  // ── Store ──────────────────────────────────────────────────────
   const { stats, distribution, monthlyChartData, isLoading, fetchAll } =
     useStatsStore();
 
@@ -65,22 +117,23 @@ export default function StatisticsPage() {
     fetchAll();
   }, [fetchAll]);
 
-  // ── Render ─────────────────────────────────────────────────────
+  const normalizedMonthlyChartData = useMemo(() => {
+    return normalizeMonthlyChartData(monthlyChartData);
+  }, [monthlyChartData]);
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-500">
-      {/* ── Page Header ───────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-serif">
           Statistic
         </h1>
         <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
-          Key performance metrics and historical data analysis of visual findings.
+          Key performance metrics and historical data analysis of visual
+          findings.
         </p>
       </div>
 
-      {/* ── Summary Cards ─────────────────────────────────────── */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-        {/* Total Inspeksi */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
@@ -104,7 +157,6 @@ export default function StatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Akurasi Sistem */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
@@ -128,7 +180,6 @@ export default function StatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Waktu Proses */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
@@ -141,12 +192,11 @@ export default function StatisticsPage() {
           <CardContent className="px-4 pb-4 md:px-6">
             <div className="text-xl md:text-2xl font-bold">1.2s</div>
             <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
-              Per Frame (Average)
+              Per Frame Average
             </p>
           </CardContent>
         </Card>
 
-        {/* Anomali Pending */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 pt-4 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
@@ -171,22 +221,21 @@ export default function StatisticsPage() {
         </Card>
       </div>
 
-      {/* ── Charts Row ────────────────────────────────────────── */}
       <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
-        {/* Bar Chart – Monthly Breakdown */}
         <Card className="col-span-1 md:col-span-2">
           <CardHeader className="px-4 pt-4 pb-2 md:px-6">
             <CardTitle className="text-base md:text-lg">
               Historical Detections
             </CardTitle>
             <CardDescription className="text-xs md:text-sm">
-              Monthly breakdown of Okay vs Defects (last 6 months)
+              Monthly breakdown of Okay vs Defects last 6 months
             </CardDescription>
           </CardHeader>
+
           <CardContent className="px-2 pb-4 md:px-4 md:pb-6">
             {isLoading ? (
               <Skeleton className="h-[280px] md:h-[350px] w-full" />
-            ) : monthlyChartData.length === 0 ? (
+            ) : normalizedMonthlyChartData.length === 0 ? (
               <div className="h-[280px] md:h-[350px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
                 <FileCheck className="w-10 h-10 opacity-30" />
                 <p className="text-sm font-medium">Belum ada data deteksi.</p>
@@ -195,7 +244,7 @@ export default function StatisticsPage() {
               <div className="h-[280px] md:h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={monthlyChartData}
+                    data={normalizedMonthlyChartData}
                     margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
                   >
                     <CartesianGrid
@@ -203,6 +252,7 @@ export default function StatisticsPage() {
                       className="stroke-muted"
                       vertical={false}
                     />
+
                     <XAxis
                       dataKey="name"
                       className="text-xs text-muted-foreground"
@@ -210,6 +260,7 @@ export default function StatisticsPage() {
                       axisLine={false}
                       tick={{ fontSize: 11 }}
                     />
+
                     <YAxis
                       className="text-xs text-muted-foreground"
                       tickLine={false}
@@ -218,6 +269,7 @@ export default function StatisticsPage() {
                       tick={{ fontSize: 11 }}
                       width={28}
                     />
+
                     <Tooltip
                       contentStyle={{
                         borderRadius: "8px",
@@ -226,45 +278,54 @@ export default function StatisticsPage() {
                         fontSize: "12px",
                       }}
                       cursor={{ fill: "var(--muted)" }}
-                      formatter={(value, name) => [value, DEFECT_LABELS[name as string] || name]}
+                      formatter={(value, name) => [
+                        value,
+                        DEFECT_LABELS[name as string] || name,
+                      ]}
                     />
+
                     <Legend
                       iconType="circle"
                       iconSize={8}
                       wrapperStyle={{ fontSize: "11px" }}
-                      formatter={(value) => DEFECT_LABELS[value as string] || value}
+                      formatter={(value) =>
+                        DEFECT_LABELS[value as string] || value
+                      }
                     />
+
                     <Bar
                       dataKey="okay"
-                      stackId="a"
                       fill={DEFECT_COLORS.okay}
-                      radius={[0, 0, 0, 0]}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="cat_mengelupas"
-                      stackId="a"
                       fill={DEFECT_COLORS.cat_mengelupas}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="cat_meleber"
-                      stackId="a"
                       fill={DEFECT_COLORS.cat_meleber}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="besi_lengkung"
-                      stackId="a"
                       fill={DEFECT_COLORS.besi_lengkung}
-                      maxBarSize={40}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
                     />
+
                     <Bar
                       dataKey="baret"
-                      stackId="a"
                       fill={DEFECT_COLORS.baret}
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
+                      maxBarSize={24}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -273,7 +334,6 @@ export default function StatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Pie Chart – Defect Distribution */}
         <Card className="col-span-1">
           <CardHeader className="px-4 pt-4 pb-2 md:px-6">
             <CardTitle className="text-base md:text-lg">
@@ -283,6 +343,7 @@ export default function StatisticsPage() {
               Breakdown by anomaly type
             </CardDescription>
           </CardHeader>
+
           <CardContent className="px-2 pb-4 md:px-4 md:pb-6">
             {isLoading ? (
               <Skeleton className="h-[260px] md:h-[300px] w-full" />
@@ -309,10 +370,14 @@ export default function StatisticsPage() {
                       {distribution.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={DEFECT_COLORS[entry.name] || COLORS[(index + 1) % COLORS.length]}
+                          fill={
+                            DEFECT_COLORS[entry.name] ||
+                            COLORS[(index + 1) % COLORS.length]
+                          }
                         />
                       ))}
                     </Pie>
+
                     <Tooltip
                       contentStyle={{
                         borderRadius: "8px",
@@ -321,6 +386,7 @@ export default function StatisticsPage() {
                         fontSize: "12px",
                       }}
                     />
+
                     <Legend
                       iconType="circle"
                       iconSize={8}
@@ -334,7 +400,6 @@ export default function StatisticsPage() {
         </Card>
       </div>
 
-      {/* ── Monthly Summary Table ──────────────────────────────── */}
       <Card>
         <CardHeader className="px-4 pt-4 pb-2 md:px-6">
           <CardTitle className="text-base md:text-lg">
@@ -344,6 +409,7 @@ export default function StatisticsPage() {
             Detail inspeksi per bulan selama 6 bulan terakhir
           </CardDescription>
         </CardHeader>
+
         <CardContent className="px-4 pb-4 md:px-6 md:pb-6">
           {isLoading ? (
             <div className="space-y-2">
@@ -351,7 +417,7 @@ export default function StatisticsPage() {
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : monthlyChartData.length === 0 ? (
+          ) : normalizedMonthlyChartData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground border rounded-md bg-muted/20">
               <FileCheck className="w-10 h-10 opacity-30" />
               <p className="text-sm font-medium">
@@ -360,7 +426,7 @@ export default function StatisticsPage() {
             </div>
           ) : (
             <div className="rounded-md border overflow-hidden overflow-x-auto">
-              <table className="w-full text-xs md:text-sm min-w-[400px]">
+              <table className="w-full text-xs md:text-sm min-w-[700px]">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
@@ -368,6 +434,18 @@ export default function StatisticsPage() {
                     </th>
                     <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Okay
+                    </th>
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
+                      Cat Mengelupas
+                    </th>
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
+                      Cat Meleber
+                    </th>
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
+                      Besi Lengkung
+                    </th>
+                    <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
+                      Baret
                     </th>
                     <th className="text-right px-3 md:px-4 py-2.5 md:py-3 font-medium text-muted-foreground">
                       Not Okay
@@ -380,29 +458,51 @@ export default function StatisticsPage() {
                     </th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y">
-                  {monthlyChartData.map((row, i) => {
+                  {normalizedMonthlyChartData.map((row, i) => {
                     const total = row.okay + row.not_okay;
                     const passRate =
                       total > 0 ? ((row.okay / total) * 100).toFixed(1) : "–";
                     const isGood = total > 0 && Number(passRate) >= 80;
+
                     return (
                       <tr
-                        key={i}
+                        key={`${row.name}-${i}`}
                         className="hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-3 md:px-4 py-2.5 md:py-3 font-medium">
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 font-medium whitespace-nowrap">
                           {row.name}
                         </td>
+
                         <td className="px-3 md:px-4 py-2.5 md:py-3 text-right text-emerald-600 font-semibold">
                           {row.okay}
                         </td>
+
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
+                          {row.cat_mengelupas}
+                        </td>
+
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
+                          {row.cat_meleber}
+                        </td>
+
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
+                          {row.besi_lengkung}
+                        </td>
+
+                        <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
+                          {row.baret}
+                        </td>
+
                         <td className="px-3 md:px-4 py-2.5 md:py-3 text-right text-destructive font-semibold">
                           {row.not_okay}
                         </td>
+
                         <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
                           {total}
                         </td>
+
                         <td className="px-3 md:px-4 py-2.5 md:py-3 text-right">
                           <span
                             className={`font-semibold ${

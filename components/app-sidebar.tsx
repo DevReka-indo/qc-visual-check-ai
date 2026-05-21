@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, ScanSearch, BarChart3, Database, User, LogOut } from "lucide-react"
+import { Home, ScanSearch, BarChart3, Database, User, LogOut, BrainCircuit } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -60,6 +60,11 @@ const data = {
             url: "/user",
             icon: User,
         },
+        {
+            title: "Train Model",
+            url: "/train-model",
+            icon: BrainCircuit,
+        }
     ],
 }
 
