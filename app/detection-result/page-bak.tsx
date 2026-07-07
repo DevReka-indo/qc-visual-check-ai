@@ -77,33 +77,6 @@ type ChartRow = {
 
 type ValidationAction = "Resolved" | "Reworked" | "Scrapped";
 
-type DetectionCardItem = {
-  id: string;
-  partId: string;
-  divisionId: string | null;
-  divisionName: string;
-  date: string;
-  status: "OK" | "NOK";
-  mainDefect: string;
-  aiConfidence: number;
-  imageUrl: string;
-  validationStatus: string;
-  inspector: string;
-  anomalies: {
-    id: string;
-    type: string;
-    confidence: number;
-    location: string;
-    desc: string;
-    boundingBox: {
-      top: number;
-      left: number;
-      width: number;
-      height: number;
-    } | null;
-  }[];
-};
-
 // ─── Constants ────────────────────────────────────────────────
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80";
@@ -131,6 +104,7 @@ const DEFECT_LABELS: Record<string, string> = {
   besi_lengkung: "Besi Lengkung",
   baret: "Baret",
 };
+
 
 function buildDefectChartData(
   rows: MonthlyDivisionStatRow[],
@@ -189,7 +163,7 @@ export default function DetectionResultPage() {
   } = useStatsStore();
 
   // ── Local UI state ────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState("NOK");
+  const [activeTab, setActiveTab] = useState("Detected");
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -201,7 +175,6 @@ export default function DetectionResultPage() {
 
   // Chart derived state
   const [chartData, setChartData] = useState<ChartRow[]>([]);
-
   // Validation dialog
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
@@ -215,16 +188,12 @@ export default function DetectionResultPage() {
   const [isFirstRender, setIsFirstRender] = useState(true);
 
   // Derived values
-  const divisions = React.useMemo(
-    () =>
-      rawDivisions.map((d) => ({
-        id: d.id,
-        name: d.name,
-        desc: d.description ?? "",
-        color: d.color_code ?? "#64748b",
-      })),
-    [rawDivisions],
-  );
+  const divisions = React.useMemo(() => rawDivisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+    desc: d.description ?? "",
+    color: d.color_code ?? "#64748b",
+  })), [rawDivisions]);
 
   const loading = inspLoading || divsLoading;
   const chartLoading = statsLoading;
@@ -241,9 +210,9 @@ export default function DetectionResultPage() {
   // ── Build chart when monthlyDivisionStats changes ─────────
   useEffect(() => {
     if (monthlyDivisionStats.length === 0) return;
-
-    const selectedDivName = selectedDivision
-      ? divisions.find((d) => d.id === selectedDivision)?.name || null
+    
+    const selectedDivName = selectedDivision 
+      ? divisions.find(d => d.id === selectedDivision)?.name || null
       : null;
 
     setChartData(buildDefectChartData(monthlyDivisionStats, selectedDivName));
@@ -255,10 +224,8 @@ export default function DetectionResultPage() {
       setIsFirstRender(false);
       return;
     }
-
     const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined;
     const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : undefined;
-
     fetchInspections({
       limit: 100,
       offset: 0,
@@ -272,7 +239,6 @@ export default function DetectionResultPage() {
   const handleRefresh = useCallback(() => {
     const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined;
     const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : undefined;
-
     fetchInspections({
       limit: 100,
       offset: 0,
@@ -296,84 +262,57 @@ export default function DetectionResultPage() {
 
   async function confirmValidation() {
     if (!validatingId) return;
-
     setIsValidating(true);
-
     const result = await patchStatus(
       validatingId,
       validationAction,
       resolutionNote || undefined,
     );
-
     if (result.error) {
       alert(`Gagal update: ${result.error}`);
     }
-
     setIsValidating(false);
     setValidationDialogOpen(false);
     setValidatingId(null);
   }
 
   // ── Derived display data ──────────────────────────────────
-  const detectedImages: DetectionCardItem[] = inspections.map((i) => {
-    const isOkay = i.ai_result_status === "okay";
-
-    return {
-      id: i.id,
-      partId: i.part_id,
-      divisionId: i.division_id,
-      divisionName: i.divisions?.name ?? "–",
-      date: i.inspection_date
-        ? format(new Date(i.inspection_date), "dd MMMM yyyy")
-        : "–",
-      status: isOkay ? "OK" : "NOK",
-      mainDefect: isOkay ? "Tidak ada temuan" : i.main_defect ?? "Unknown",
-      aiConfidence: i.ai_confidence_score ?? 0,
-      imageUrl: i.image_url ?? FALLBACK_IMAGE,
-      validationStatus: isOkay ? "Resolved" : i.validation_status ?? "Pending",
-      inspector: i.users?.full_name ?? "System Inspector",
-      anomalies: isOkay
-        ? []
-        : i.anomalies.map((a) => ({
-            id: a.id,
-            type: a.defect_type ?? "Unknown",
-            confidence: a.confidence_score ?? 0,
-            location: a.location ?? "–",
-            desc: a.description ?? "–",
-            boundingBox: a.bounding_box as {
-              top: number;
-              left: number;
-              width: number;
-              height: number;
-            } | null,
-          })),
-    };
-  });
-
-  const getFilteredDetections = (items: DetectionCardItem[]) =>
-    items.filter((d) => {
-      if (!selectedDivision) return true;
-      if (selectedDivision === "unknown") return !d.divisionId;
-      return d.divisionId === selectedDivision;
-    });
-
-  const okDetections = detectedImages.filter((d) => d.status === "OK");
-  const nokDetections = detectedImages.filter((d) => d.status === "NOK");
-
-  const displayedOkDetections = getFilteredDetections(okDetections);
-  const displayedNokDetections = getFilteredDetections(nokDetections);
+  const detectedImages = inspections.map((i) => ({
+    id: i.id,
+    partId: i.part_id,
+    divisionId: i.division_id,
+    divisionName: i.divisions?.name ?? "–",
+    date: i.inspection_date
+      ? format(new Date(i.inspection_date), "dd MMMM yyyy")
+      : "–",
+    status: i.ai_result_status === "okay" ? "OK" : "NOK",
+    mainDefect: i.main_defect ?? "None",
+    aiConfidence: i.ai_confidence_score ?? 0,
+    imageUrl: i.image_url ?? FALLBACK_IMAGE,
+    validationStatus: i.validation_status ?? "Pending",
+    inspector: i.users?.full_name ?? "System Inspector",
+    anomalies: i.anomalies.map((a) => ({
+      id: a.id,
+      type: a.defect_type ?? "Unknown",
+      confidence: a.confidence_score ?? 0,
+      location: a.location ?? "–",
+      desc: a.description ?? "–",
+      boundingBox: a.bounding_box as {
+        top: number;
+        left: number;
+        width: number;
+        height: number;
+      } | null,
+    })),
+  }));
 
   const pendingTasks = inspections
-    .filter(
-      (i) =>
-        i.validation_status === "Pending" &&
-        i.ai_result_status !== "okay",
-    )
+    .filter((i) => i.validation_status === "Pending")
     .map((i) => ({
       id: i.id,
       partId: i.part_id,
       division: i.divisions?.name ?? "Unknown",
-      issue: i.main_defect ?? "Unknown",
+      issue: i.main_defect ?? "No Issue",
       confidence: i.ai_confidence_score ?? 0,
       time: i.inspection_date
         ? format(new Date(i.inspection_date), "dd MMM yyyy, HH:mm")
@@ -381,104 +320,23 @@ export default function DetectionResultPage() {
     }));
 
   const completedLogs = inspections
-    .filter(
-      (i) => i.validation_status !== "Pending" || i.ai_result_status === "okay",
-    )
-    .map((i) => {
-      const isOkay = i.ai_result_status === "okay";
-
-      return {
-        id: i.id,
-        date: i.inspection_date
-          ? format(new Date(i.inspection_date), "dd MMMM yyyy")
-          : "–",
-        partId: i.part_id,
-        division: i.divisions?.name ?? "–",
-        issue: isOkay ? "Tidak ada temuan" : i.main_defect ?? "–",
-        resolution: isOkay ? "Lolos inspeksi" : i.resolution_note ?? "–",
-        inspector: i.users?.full_name ?? "System Inspector",
-        status: isOkay ? "Resolved" : i.validation_status ?? "Completed",
-      };
-    });
+    .filter((i) => i.validation_status !== "Pending")
+    .map((i) => ({
+      id: i.id,
+      date: i.inspection_date
+        ? format(new Date(i.inspection_date), "dd MMMM yyyy")
+        : "–",
+      partId: i.part_id,
+      division: i.divisions?.name ?? "–",
+      issue: i.main_defect ?? "–",
+      resolution: i.resolution_note ?? "–",
+      inspector: i.users?.full_name ?? "System Inspector",
+      status: i.validation_status ?? "Completed",
+    }));
 
   const selectedDetection =
     detectedImages.find((d) => d.id === selectedDetectionId) ??
     detectedImages[0];
-
-  const renderDetectionGallery = (
-    items: DetectionCardItem[],
-    emptyMessage: string,
-  ) => (
-    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 animate-in slide-in-from-bottom-4 duration-500">
-      {loading ? (
-        Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl overflow-hidden shadow-sm border"
-          >
-            <div className="w-full aspect-[4/3] bg-muted animate-pulse" />
-            <div className="p-3 md:p-4 bg-card">
-              <div className="h-3 md:h-4 w-20 md:w-24 bg-muted animate-pulse rounded" />
-            </div>
-          </div>
-        ))
-      ) : items.length === 0 ? (
-        <div className="col-span-full py-20 text-center text-muted-foreground">
-          {emptyMessage}
-        </div>
-      ) : (
-        items.map((detection) => (
-          <Card
-            key={detection.id}
-            className="cursor-pointer overflow-hidden group hover:shadow-md transition-all border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl"
-            onClick={() => {
-              setSelectedDetectionId(detection.id);
-              setIsDetailOpen(true);
-            }}
-          >
-            <div className="w-full aspect-[4/3] relative overflow-hidden bg-slate-100">
-              <img
-                src={detection.imageUrl}
-                alt={detection.mainDefect}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-
-              <div className="absolute top-2 right-2">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] px-1.5 py-0.5 backdrop-blur-sm",
-                    detection.validationStatus === "Pending"
-                      ? "bg-amber-100/90 text-amber-700 border-amber-300"
-                      : "bg-green-100/90 text-green-700 border-green-300",
-                  )}
-                >
-                  {detection.validationStatus}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="p-2.5 md:p-4 flex items-center bg-white dark:bg-card gap-2 md:gap-3">
-              <span
-                className={cn(
-                  "font-black text-xs md:text-sm uppercase tracking-wide shrink-0",
-                  detection.status === "NOK"
-                    ? "text-destructive"
-                    : "text-emerald-600",
-                )}
-              >
-                {detection.status}
-              </span>
-              <div className="h-3 md:h-4 w-[2px] bg-slate-200 shrink-0" />
-              <span className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
-                {detection.mainDefect}
-              </span>
-            </div>
-          </Card>
-        ))
-      )}
-    </div>
-  );
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -495,45 +353,29 @@ export default function DetectionResultPage() {
 
       {/* ── TABS ─────────────────────────────────────────── */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        {["OK", "NOK", "Pending", "Completed"].map((tab) => {
-          const count =
-            tab === "OK"
-              ? displayedOkDetections.length
-              : tab === "NOK"
-                ? displayedNokDetections.length
-                : tab === "Pending"
-                  ? pendingTasks.length
-                  : completedLogs.length;
-
-          return (
-            <Button
-              key={tab}
-              variant={activeTab === tab ? "default" : "outline"}
-              className={cn(
-                "rounded-full px-4 md:px-6 transition-all shrink-0 text-sm",
-                activeTab === tab
-                  ? "bg-[#1e1b4b] hover:bg-[#2e2a70] text-white"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-
-              {count > 0 && (
-                <Badge
-                  variant={
-                    tab === "NOK" || tab === "Pending"
-                      ? "destructive"
-                      : "secondary"
-                  }
-                  className="ml-2 h-5 min-w-5 rounded-full px-1.5 flex items-center justify-center text-[10px]"
-                >
-                  {count}
-                </Badge>
-              )}
-            </Button>
-          );
-        })}
+        {["Detected", "Pending", "Completed"].map((tab) => (
+          <Button
+            key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className={cn(
+              "rounded-full px-4 md:px-6 transition-all shrink-0 text-sm",
+              activeTab === tab
+                ? "bg-[#1e1b4b] hover:bg-[#2e2a70] text-white"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+            {tab === "Pending" && pendingTasks.length > 0 && (
+              <Badge
+                variant="destructive"
+                className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
+              >
+                {pendingTasks.length}
+              </Badge>
+            )}
+          </Button>
+        ))}
       </div>
 
       {/* ── TOP: LINE CHART + DIVISION CARDS ─────────────── */}
@@ -548,8 +390,8 @@ export default function DetectionResultPage() {
               Inspections breakdown across divisions (last 6 months)
             </CardDescription>
           </CardHeader>
-
           <CardContent className="p-2 md:p-4 pt-0">
+
             {chartLoading ? (
               <div className="h-[260px] flex items-center justify-center text-muted-foreground gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -607,9 +449,7 @@ export default function DetectionResultPage() {
                       iconType="circle"
                       iconSize={8}
                       wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
-                      formatter={(value) =>
-                        DEFECT_LABELS[value as string] || value
-                      }
+                      formatter={(value) => DEFECT_LABELS[value as string] || value}
                     />
 
                     <Bar
@@ -662,8 +502,7 @@ export default function DetectionResultPage() {
                 className="h-16 md:h-20 rounded-xl bg-muted animate-pulse"
               />
             ))
-          ) : divisions.length === 0 &&
-            inspections.filter((i) => !i.division_id).length === 0 ? (
+          ) : divisions.length === 0 && inspections.filter((i) => !i.division_id).length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No divisions found.
             </p>
@@ -672,7 +511,6 @@ export default function DetectionResultPage() {
               const count = inspections.filter(
                 (i) => i.division_id === div.id,
               ).length;
-
               return (
                 <div
                   key={div.id}
@@ -694,7 +532,6 @@ export default function DetectionResultPage() {
                   >
                     {div.name.charAt(0)}
                   </div>
-
                   <div className="flex-1 min-w-0">
                     <h4
                       className={cn(
@@ -717,7 +554,6 @@ export default function DetectionResultPage() {
                       {div.desc}
                     </p>
                   </div>
-
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -833,21 +669,84 @@ export default function DetectionResultPage() {
       {/*  TAB CONTENT                                      */}
       {/* ══════════════════════════════════════════════════ */}
 
-      {/* 1. OK – Passed Gallery */}
-      {activeTab === "OK" &&
-        renderDetectionGallery(
-          displayedOkDetections,
-          "Belum ada hasil inspeksi OK untuk kriteria yang dipilih.",
-        )}
+      {/* 1. DETECTED – Gallery */}
+      {activeTab === "Detected" && (
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 animate-in slide-in-from-bottom-4 duration-500">
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-2xl overflow-hidden shadow-sm border"
+              >
+                <div className="w-full aspect-[4/3] bg-muted animate-pulse" />
+                <div className="p-3 md:p-4 bg-card">
+                  <div className="h-3 md:h-4 w-20 md:w-24 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+            ))
+          ) : detectedImages.length === 0 ? (
+            <div className="col-span-full py-20 text-center text-muted-foreground">
+              No detections found for the selected criteria.
+            </div>
+          ) : (
+            detectedImages
+              .filter((d) => {
+                if (!selectedDivision) return true;
+                if (selectedDivision === "unknown") return !d.divisionId;
+                return d.divisionId === selectedDivision;
+              })
+              .map((detection) => (
+                <Card
+                  key={detection.id}
+                  className="cursor-pointer overflow-hidden group hover:shadow-md transition-all border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl"
+                  onClick={() => {
+                    setSelectedDetectionId(detection.id);
+                    setIsDetailOpen(true);
+                  }}
+                >
+                  <div className="w-full aspect-[4/3] relative overflow-hidden bg-slate-100">
+                    <img
+                      src={detection.imageUrl}
+                      alt={detection.mainDefect}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0.5 backdrop-blur-sm",
+                          detection.validationStatus === "Pending"
+                            ? "bg-amber-100/90 text-amber-700 border-amber-300"
+                            : "bg-green-100/90 text-green-700 border-green-300",
+                        )}
+                      >
+                        {detection.validationStatus}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="p-2.5 md:p-4 flex items-center bg-white dark:bg-card gap-2 md:gap-3">
+                    <span
+                      className={cn(
+                        "font-black text-xs md:text-sm uppercase tracking-wide shrink-0",
+                        detection.status === "NOK"
+                          ? "text-destructive"
+                          : "text-emerald-600",
+                      )}
+                    >
+                      {detection.status}
+                    </span>
+                    <div className="h-3 md:h-4 w-[2px] bg-slate-200 shrink-0" />
+                    <span className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
+                      {detection.mainDefect}
+                    </span>
+                  </div>
+                </Card>
+              ))
+          )}
+        </div>
+      )}
 
-      {/* 2. NOK – Defect Gallery */}
-      {activeTab === "NOK" &&
-        renderDetectionGallery(
-          displayedNokDetections,
-          "Tidak ada hasil inspeksi NOK untuk kriteria yang dipilih.",
-        )}
-
-      {/* 3. PENDING – Verification queue */}
+      {/* 2. PENDING – Verification queue */}
       {activeTab === "Pending" && (
         <Card className="border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
           <CardHeader className="bg-amber-500/10 border-b border-amber-500/20 pb-3 md:pb-4 px-4 pt-4 md:px-6">
@@ -860,7 +759,6 @@ export default function DetectionResultPage() {
               konfirmasi manusia.
             </CardDescription>
           </CardHeader>
-
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
@@ -885,7 +783,6 @@ export default function DetectionResultPage() {
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold shrink-0 text-sm">
                         ?
                       </div>
-
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-1">
                           <h4 className="font-bold text-sm md:text-base">
@@ -901,14 +798,12 @@ export default function DetectionResultPage() {
                             {task.time}
                           </span>
                         </div>
-
                         <p className="text-xs md:text-sm text-foreground mb-2">
                           <span className="font-semibold text-muted-foreground">
                             Indikasi AI:
                           </span>{" "}
                           {task.issue}
                         </p>
-
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 w-24 bg-muted rounded-full overflow-hidden">
                             <div
@@ -922,7 +817,6 @@ export default function DetectionResultPage() {
                         </div>
                       </div>
                     </div>
-
                     <div className="flex gap-2 w-full sm:w-auto mt-3 sm:mt-0 shrink-0">
                       <Button
                         variant="outline"
@@ -935,7 +829,6 @@ export default function DetectionResultPage() {
                         <X className="w-4 h-4 mr-2" />
                         Reject
                       </Button>
-
                       <Button
                         size="sm"
                         className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm"
@@ -955,7 +848,7 @@ export default function DetectionResultPage() {
         </Card>
       )}
 
-      {/* 4. COMPLETED – History log */}
+      {/* 3. COMPLETED – History log */}
       {activeTab === "Completed" && (
         <Card className="border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
           <CardHeader className="bg-emerald-500/10 border-b border-emerald-500/20 pb-3 md:pb-4 px-4 pt-4 md:px-6">
@@ -967,7 +860,6 @@ export default function DetectionResultPage() {
               Daftar komponen yang telah selesai ditindaklanjuti.
             </CardDescription>
           </CardHeader>
-
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
@@ -999,7 +891,6 @@ export default function DetectionResultPage() {
                           {log.date}
                         </Badge>
                       </div>
-
                       <Badge
                         className={cn(
                           "px-3 py-1",
@@ -1013,7 +904,6 @@ export default function DetectionResultPage() {
                         {log.status}
                       </Badge>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm mt-2 pl-6 md:pl-8 border-l-2 border-muted ml-1 md:ml-2">
                       <div>
                         <p className="text-muted-foreground text-[10px] md:text-xs mb-0.5 md:mb-1">
@@ -1023,7 +913,6 @@ export default function DetectionResultPage() {
                           {log.issue}
                         </p>
                       </div>
-
                       <div>
                         <p className="text-muted-foreground text-[10px] md:text-xs mb-0.5 md:mb-1">
                           Tindakan Penyelesaian
@@ -1033,7 +922,6 @@ export default function DetectionResultPage() {
                           {log.resolution}
                         </p>
                       </div>
-
                       <div>
                         <p className="text-muted-foreground text-[10px] md:text-xs mb-0.5 md:mb-1">
                           Inspektur Final
@@ -1064,7 +952,6 @@ export default function DetectionResultPage() {
                 Inspeksi:{" "}
                 <span className="font-mono">{selectedDetection.partId}</span>
               </DialogTitle>
-
               <div className="flex items-center gap-2 flex-wrap mt-1">
                 <Badge
                   className={cn(
@@ -1076,7 +963,6 @@ export default function DetectionResultPage() {
                 >
                   {selectedDetection.status === "OK" ? "✓ PASSED" : "✗ REJECT"}
                 </Badge>
-
                 <DialogDescription className="text-xs m-0">
                   {selectedDetection.date} • Inspector:{" "}
                   {selectedDetection.inspector}
@@ -1097,7 +983,7 @@ export default function DetectionResultPage() {
               </div>
             )}
 
-            {/* ── Body ─────────────────────────────────── */}
+            {/* ── Body (scrollable on mobile, split on desktop) ── */}
             <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
               <div className="flex flex-col md:flex-row md:divide-x divide-border md:h-full">
                 {/* ── LEFT: Image + Metadata ─────────────── */}
@@ -1117,13 +1003,11 @@ export default function DetectionResultPage() {
                       className="w-full h-full object-cover"
                     />
 
-                    {/* Bounding box overlays — only for NOK */}
+                    {/* Real bounding box overlays — only for NOK with actual data */}
                     {selectedDetection.status === "NOK" &&
                       selectedDetection.anomalies.map((anom, idx) => {
                         const box = anom.boundingBox;
-
                         if (!box) return null;
-
                         const palette = [
                           {
                             border: "border-destructive",
@@ -1141,9 +1025,7 @@ export default function DetectionResultPage() {
                             badge: "bg-yellow-500",
                           },
                         ];
-
                         const c = palette[idx % palette.length];
-
                         return (
                           <div
                             key={anom.id}
@@ -1192,7 +1074,6 @@ export default function DetectionResultPage() {
                         {selectedDetection.partId}
                       </p>
                     </div>
-
                     <div className="space-y-0.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                         Tanggal Inspeksi
@@ -1201,7 +1082,6 @@ export default function DetectionResultPage() {
                         {selectedDetection.date}
                       </p>
                     </div>
-
                     <div className="space-y-0.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                         Inspektur
@@ -1210,7 +1090,6 @@ export default function DetectionResultPage() {
                         {selectedDetection.inspector}
                       </p>
                     </div>
-
                     <div className="space-y-0.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                         Status Validasi
@@ -1246,7 +1125,6 @@ export default function DetectionResultPage() {
                         {selectedDetection.aiConfidence}%
                       </span>
                     </div>
-
                     <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className={cn(
@@ -1258,7 +1136,6 @@ export default function DetectionResultPage() {
                         style={{ width: `${selectedDetection.aiConfidence}%` }}
                       />
                     </div>
-
                     <p className="text-[10px] text-muted-foreground">
                       {selectedDetection.status === "OK"
                         ? "Model confident komponen dalam kondisi baik."
@@ -1269,7 +1146,7 @@ export default function DetectionResultPage() {
 
                 {/* ── RIGHT: Anomaly List + Actions ──────── */}
                 <div className="md:flex-1 flex flex-col md:overflow-hidden border-t md:border-t-0">
-                  {/* Anomaly list */}
+                  {/* Anomaly list — scrollable */}
                   <div className="flex-1 p-4 md:p-6 md:overflow-y-auto space-y-3">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1307,7 +1184,6 @@ export default function DetectionResultPage() {
                                 {anom.type}
                               </span>
                             </div>
-
                             <Badge
                               variant="outline"
                               className="text-[10px] shrink-0 bg-destructive/5 text-destructive border-destructive/30"
@@ -1315,7 +1191,6 @@ export default function DetectionResultPage() {
                               {anom.confidence}%
                             </Badge>
                           </div>
-
                           <div className="pl-7 space-y-1.5">
                             <p className="text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground/80">
@@ -1332,7 +1207,7 @@ export default function DetectionResultPage() {
                     )}
                   </div>
 
-                  {/* Action buttons */}
+                  {/* Action buttons — pinned at bottom */}
                   {selectedDetection.validationStatus === "Pending" && (
                     <div className="shrink-0 border-t p-4 md:p-6 flex gap-3 bg-card">
                       <Button
@@ -1349,7 +1224,6 @@ export default function DetectionResultPage() {
                       >
                         <X className="w-4 h-4 mr-1.5" /> Reject
                       </Button>
-
                       <Button
                         className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm h-10"
                         onClick={() => {
@@ -1384,7 +1258,6 @@ export default function DetectionResultPage() {
                 ? "✅ Konfirmasi Validasi"
                 : "❌ Konfirmasi Reject (Scrap)"}
             </AlertDialogTitle>
-
             <AlertDialogDescription>
               Anda akan menandai{" "}
               <span className="font-bold font-mono text-foreground">

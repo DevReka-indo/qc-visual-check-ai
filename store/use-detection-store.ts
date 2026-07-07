@@ -129,7 +129,9 @@ async function callAIModel(file: File): Promise<{
       throw new Error(json.error || "AI Backend error");
     }
 
-    const label = json.data?.label || "normal";
+    const rawLabel = json.data?.label || "normal";
+    const normalizedLabel = rawLabel.trim().toLowerCase();
+
     const confidence = parseFloat(
       ((json.data?.confidence || 0) * 100).toFixed(1),
     );
@@ -137,11 +139,26 @@ async function callAIModel(file: File): Promise<{
     const imagePath = json.data?.image_url ?? null;
     const imageUrl = imagePath ? `${apiUrl}${imagePath}` : null;
 
-    const isOkay = label.toLowerCase() === "normal";
+    const isOkayLabel = (label?: string | null) => {
+      const normalized = String(label ?? "")
+        .trim()
+        .toLowerCase();
+
+      return (
+        normalized === "ok" ||
+        normalized === "okay" ||
+        normalized === "normal"
+      );
+    };
+
+    const isOkay = isOkayLabel(normalizedLabel);
 
     if (isOkay) {
       return {
-        finalResult: { status: "okay" },
+        finalResult: {
+          status: "okay",
+          reason: "OK",
+        },
         defectBox: null,
         anomalies: [],
         confidence,
@@ -173,6 +190,8 @@ async function callAIModel(file: File): Promise<{
       Array.isArray(json.data.all_detections)
     ) {
       json.data.all_detections.forEach((det, idx) => {
+        if (isOkayLabel(det.label)) return;
+
         let detBox: BoundingBox | null = null;
 
         if (det.box && Array.isArray(det.box) && det.box.length === 4) {
@@ -204,16 +223,19 @@ async function callAIModel(file: File): Promise<{
 
     if (anomalies.length === 0) {
       anomalies.push({
-        defect_type: label,
+        defect_type: rawLabel,
         location: "Visual Surface",
-        description: `AI detected anomaly: ${label}`,
+        description: `AI detected anomaly: ${rawLabel}`,
         confidence_score: confidence,
         bounding_box: box as Record<string, unknown>,
       });
     }
 
     return {
-      finalResult: { status: "not_okay", reason: label },
+      finalResult: {
+        status: "not_okay",
+        reason: rawLabel,
+      },
       defectBox: box,
       confidence,
       anomalies,
@@ -223,7 +245,10 @@ async function callAIModel(file: File): Promise<{
     console.error("Failed to call AI model:", error);
 
     return {
-      finalResult: { status: "not_okay", reason: "AI API Error" },
+      finalResult: {
+        status: "not_okay",
+        reason: "AI API Error",
+      },
       defectBox: null,
       confidence: 0,
       anomalies: [],

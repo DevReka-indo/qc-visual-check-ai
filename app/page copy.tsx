@@ -51,10 +51,7 @@ export default function HomePage() {
   // ── Local UI-only state (drag & drop & image dims) ────────────
   const [isDragging, setIsDragging] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [imageDims, setImageDims] = React.useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const [imageDims, setImageDims] = React.useState<{ width: number; height: number } | null>(null);
 
   // ── On mount: load 3 recent detections ───────────────────────
   useEffect(() => {
@@ -64,7 +61,6 @@ export default function HomePage() {
   // ── Sync store's recentDetections from inspection store ───────
   useEffect(() => {
     if (inspections.length === 0) return;
-
     setRecentDetections(
       inspections.slice(0, 3).map((i) => ({
         id: i.part_id,
@@ -79,18 +75,14 @@ export default function HomePage() {
   // ── File handlers ─────────────────────────────────────────────
   const processFile = (file: File) => {
     setError(null);
-
     if (!file.type.startsWith("image/")) {
       setError("File harus berupa gambar.");
       return;
     }
 
     const MAX_SIZE = 2 * 1024 * 1024; // 2MB
-
     if (file.size > MAX_SIZE) {
-      setError(
-        "Ukuran gambar maksimal adalah 2MB. Silakan pilih gambar yang lebih kecil.",
-      );
+      setError("Ukuran gambar maksimal adalah 2MB. Silakan pilih gambar yang lebih kecil.");
       return;
     }
 
@@ -99,12 +91,10 @@ export default function HomePage() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-
     if (file) {
       setImageDims(null);
       processFile(file);
     }
-
     e.target.value = "";
   };
 
@@ -112,18 +102,14 @@ export default function HomePage() {
     e.preventDefault();
     setIsDragging(true);
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-
     const file = e.dataTransfer.files?.[0];
-
     if (file) {
       setImageDims(null);
       processFile(file);
@@ -135,13 +121,9 @@ export default function HomePage() {
     runDetection(profile?.division_id ?? null);
   };
 
-  // ── Derived result helpers ────────────────────────────────────
-  const isOkay = result?.status === "okay";
-  const isAnomaly = result?.status === "not_okay";
-
   // ── Dynamic card class ────────────────────────────────────────
   const resultCardClass = result
-    ? isOkay
+    ? result.status === "okay"
       ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
       : "border-destructive/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]"
     : "border-sidebar-border";
@@ -171,7 +153,8 @@ export default function HomePage() {
           Workspace Deteksi
         </h1>
         <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">
-          Upload foto komponen untuk dianalisis oleh AI.
+          Upload foto temuan untuk dianalisis
+          oleh AI.
         </p>
       </div>
 
@@ -218,7 +201,6 @@ export default function HomePage() {
                     className="max-h-[240px] md:max-h-[300px] object-contain rounded-md shadow-sm z-10"
                     onLoad={(e) => {
                       const img = e.currentTarget;
-
                       setImageDims({
                         width: img.naturalWidth,
                         height: img.naturalHeight,
@@ -230,14 +212,11 @@ export default function HomePage() {
                   {(isDetecting || isCompressing) && (
                     <div className="absolute inset-0 z-20 overflow-hidden rounded-md pointer-events-none">
                       <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-
                       {isUploading || isCompressing ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs text-primary font-medium bg-background/80 px-2 py-1 rounded">
-                            {isCompressing
-                              ? "Compressing image..."
-                              : "Uploading image..."}
+                            {isCompressing ? "Compressing image..." : "Uploading image..."}
                           </span>
                         </div>
                       ) : (
@@ -246,21 +225,15 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Bounding box overlay — only for anomaly */}
-                  {defectBox && isAnomaly && imageDims && (
+                  {/* Bounding box overlay */}
+                  {defectBox && result?.status === "not_okay" && imageDims && (
                     <div
                       className="absolute z-20 border-2 border-destructive bg-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-all duration-500 ease-out animate-in zoom-in-50"
                       style={{
                         top: `${(defectBox.top / imageDims.height) * 100}%`,
                         left: `${(defectBox.left / imageDims.width) * 100}%`,
-                        width: `${
-                          (defectBox.width / Math.max(imageDims.width, 1)) *
-                          100
-                        }%`,
-                        height: `${
-                          (defectBox.height / Math.max(imageDims.height, 1)) *
-                          100
-                        }%`,
+                        width: `${(defectBox.width / Math.max(imageDims.width, 1)) * 100}%`,
+                        height: `${(defectBox.height / Math.max(imageDims.height, 1)) * 100}%`,
                       }}
                     >
                       <Badge
@@ -297,11 +270,9 @@ export default function HomePage() {
                       onChange={handleImageUpload}
                     />
                   </label>
-
                   <div className="p-3 md:p-4 bg-primary/10 rounded-full text-primary mb-3 md:mb-4 pointer-events-none">
                     <Upload className="w-8 h-8 md:w-10 md:h-10" />
                   </div>
-
                   <div className="text-center pointer-events-none space-y-1 px-4">
                     <p className="text-sm md:text-base font-semibold">
                       Tarik gambar ke sini
@@ -331,15 +302,9 @@ export default function HomePage() {
             >
               Clear
             </Button>
-
             <Button
               onClick={handleDetection}
-              disabled={
-                !selectedImage ||
-                !selectedFile ||
-                isDetecting ||
-                isCompressing
-              }
+              disabled={!selectedImage || !selectedFile || isDetecting || isCompressing}
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all hover:scale-[1.01] text-sm"
             >
               {isDetecting ? (
@@ -376,7 +341,6 @@ export default function HomePage() {
                 Output deteksi dari model Deep Learning.
               </CardDescription>
             </CardHeader>
-
             <CardContent className="flex-1 px-4 pb-4 md:px-6 md:pb-6">
               {isDetecting ? (
                 <div className="flex flex-col items-center justify-center h-[160px] md:h-[200px] space-y-4">
@@ -395,13 +359,13 @@ export default function HomePage() {
                   {/* Status row */}
                   <div
                     className={`flex items-center justify-between p-3 md:p-5 border rounded-xl ${
-                      isOkay
+                      result.status === "okay"
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : "bg-destructive/10 border-destructive/30"
                     }`}
                   >
                     <div className="flex items-center gap-3 md:gap-4">
-                      {isOkay ? (
+                      {result.status === "okay" ? (
                         <div className="p-1.5 md:p-2 bg-emerald-500/20 rounded-full">
                           <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8 text-emerald-500" />
                         </div>
@@ -410,31 +374,31 @@ export default function HomePage() {
                           <AlertCircle className="w-6 h-6 md:w-8 md:h-8 text-destructive" />
                         </div>
                       )}
-
                       <div>
                         <p className="font-bold text-sm md:text-base">
                           Status Akhir
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {isOkay ? "Tidak ada anomali" : "Temuan anomali"}
+                          Temuan
                         </p>
                       </div>
                     </div>
-
                     <Badge
-                      variant={isOkay ? "outline" : "destructive"}
+                      variant={
+                        result.status === "okay" ? "outline" : "destructive"
+                      }
                       className={`text-xs md:text-base px-2 md:px-4 py-1 md:py-2 shadow-sm shrink-0 ${
-                        isOkay
+                        result.status === "okay"
                           ? "bg-emerald-500 text-white border-transparent"
                           : "animate-pulse"
                       }`}
                     >
-                      {isOkay ? "PASSED" : "REJECT"}
+                      {result.status === "okay" ? "PASSED" : "REJECT"}
                     </Badge>
                   </div>
 
                   {/* Anomaly alert */}
-                  {isAnomaly && (
+                  {result.status === "not_okay" && (
                     <Alert
                       variant="destructive"
                       className="bg-destructive/5 border-destructive/20 text-destructive"
@@ -454,22 +418,6 @@ export default function HomePage() {
                     </Alert>
                   )}
 
-                  {/* OK alert */}
-                  {isOkay && (
-                    <Alert className="bg-emerald-500/5 border-emerald-500/20 text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5" />
-                      <AlertTitle className="font-bold text-sm md:text-base ml-2">
-                        Tidak Ada Anomali
-                      </AlertTitle>
-                      <AlertDescription className="mt-1 text-xs md:text-sm leading-relaxed ml-2">
-                        Sistem mendeteksi komponen dalam kondisi baik. Hasil ini
-                        dicatat sebagai{" "}
-                        <span className="font-bold">Okay</span>, bukan sebagai
-                        temuan anomali.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
                   {/* Confidence bar */}
                   <div className="space-y-2 md:space-y-3 p-3 md:p-5 bg-muted/20 rounded-xl border border-muted-foreground/10">
                     <div className="flex justify-between items-center">
@@ -478,17 +426,20 @@ export default function HomePage() {
                       </h4>
                       <p
                         className={`text-base md:text-lg font-bold ${
-                          isOkay ? "text-emerald-500" : "text-destructive"
+                          result.status === "okay"
+                            ? "text-emerald-500"
+                            : "text-destructive"
                         }`}
                       >
                         {confidence}%
                       </p>
                     </div>
-
                     <div className="w-full h-2 md:h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
                       <div
                         className={`h-full transition-all duration-1000 ease-out ${
-                          isOkay ? "bg-emerald-500" : "bg-destructive"
+                          result.status === "okay"
+                            ? "bg-emerald-500"
+                            : "bg-destructive"
                         }`}
                         style={{ width: `${confidence}%` }}
                       />
@@ -514,7 +465,6 @@ export default function HomePage() {
                 Aktivitas Terakhir
               </CardTitle>
             </CardHeader>
-
             <CardContent className="py-2 pb-3 md:pb-4 px-4 md:px-6">
               <div className="space-y-2 md:space-y-3">
                 {recentDetections.length === 0 ? (
@@ -539,7 +489,6 @@ export default function HomePage() {
                           {item.id}
                         </span>
                       </div>
-
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge
                           variant={
